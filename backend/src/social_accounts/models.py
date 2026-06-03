@@ -1,0 +1,35 @@
+from typing import Optional
+import uuid
+from datetime import datetime
+from sqlalchemy import String, ForeignKey, UniqueConstraint, DateTime
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+
+from src.common.models import Base, TimestampMixin
+
+
+class SocialAccount(Base, TimestampMixin):
+    __tablename__ = "social_accounts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    platform: Mapped[str] = mapped_column(String(50), nullable=False)
+    
+    provider_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    
+    username: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    global_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    avatar_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    
+    profile_metadata: Mapped[dict] = mapped_column(JSONB, server_default="{}")
+    
+    access_token: Mapped[str] = mapped_column(String(500), nullable=False)
+    refresh_token: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped["User"] = relationship("User", back_populates="social_accounts") # type: ignore
+
+    __table_args__ = (
+        UniqueConstraint("platform", "provider_account_id", name="uix_platform_account"),
+    )
+    
