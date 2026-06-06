@@ -27,7 +27,11 @@ export default function App() {
     <BrowserRouter>
       <Toast />
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={
+          <GuestOnlyRoute>
+            <LandingPage />
+          </GuestOnlyRoute>
+        } />
 
         <Route
           element={

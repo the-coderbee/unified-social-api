@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 import uuid
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,3 +86,8 @@ async def update_social_account_tokens(
     await db.refresh(account)
     
     return account
+
+async def get_social_accounts(db: AsyncSession, user_id: uuid.UUID) -> List[SocialAccount]:
+    query = select(SocialAccount).where(SocialAccount.user_id == user_id)
+    result = await db.execute(query)
+    return result.scalars().all()

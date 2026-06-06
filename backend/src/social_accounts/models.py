@@ -21,11 +21,11 @@ class SocialAccount(Base, TimestampMixin):
     global_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     
-    profile_metadata: Mapped[dict] = mapped_column(JSONB, server_default="{}")
+    profile_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     
     access_token: Mapped[str] = mapped_column(String(500), nullable=False)
-    refresh_token: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refresh_token: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="social_accounts") # type: ignore
 

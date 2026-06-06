@@ -1,10 +1,12 @@
 import secrets
+from typing import Dict
 import uuid
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.social_accounts.platforms.base import SocialPlatform
 from src.social_accounts.models import SocialAccount
 from src.social_accounts.platforms.x import XPlatform
 from src.core.database import get_db
@@ -16,7 +18,7 @@ from src.social_accounts.platforms.discord import DiscordPlatform
 
 router = APIRouter(tags=["Social Accounts"])
 
-PLATFORMS = {
+PLATFORMS: Dict[str, SocialPlatform] = {
     "discord": DiscordPlatform(),
     "x": XPlatform(),
 }
@@ -83,7 +85,7 @@ async def link_account(
     platform = get_platform(platform_name)
     
     try:
-        token_data = await platform.exchange_code_for_token(payload.code)
+        token_data = await platform.exchange_code_for_token(payload.code, payload.state)
         
         profile_data = await platform.fetch_user_profile(token_data["access_token"])
 
@@ -91,10 +93,10 @@ async def link_account(
             db=db,
             user_id=current_user.id,
             platform_name=platform.platform_name,
-            provider_account_id=token_data["provider_account_id"],
             access_token=token_data["access_token"],
             refresh_token=token_data.get("refresh_token"),
             expires_in=token_data.get("expires_in", 0),
+            provider_account_id=profile_data.get("provider_account_id"),
             username=profile_data.get("username"),
             global_name=profile_data.get("global_name"),
             avatar_url=profile_data.get("avatar_url")
