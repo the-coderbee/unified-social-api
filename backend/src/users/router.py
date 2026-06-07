@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_current_user
+from src.api.dependencies import RateLimiter, get_current_user
 from src.core.database import get_db
 from src.core.security import verify_password, create_access_token
 from src.users.models import User
@@ -10,9 +10,10 @@ from src.users.schemas import UserCreate, UserResponse
 from src.users.repository import get_user_by_email, create_user
 
 
-router = APIRouter(tags=['Users'])
+router = APIRouter(tags=['Users'], dependencies=[Depends(RateLimiter(max_requests=30, window_seconds=60))])
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post("/register", dependencies=[Depends(RateLimiter(max_requests=5, window_seconds=60))], response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     """Register a new user."""
     existing_user = await get_user_by_email(db, user_in.email)
@@ -34,7 +35,7 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
             detail="An error occurred while registering the user"
         )
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(RateLimiter(max_requests=5, window_seconds=60))])
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     """Authenticates a user and returns a JSON Web Token."""
     user = await get_user_by_email(db, form_data.username)

@@ -8,14 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.posts.schemas import PostCreate, PostResponse, PostPlatformResultCreate
 from src.posts.models import Post, PostResultStatus, PostStatus
 from src.posts.repository import create_post as create_post_db, create_post_platform_result, get_posts as get_posts_db, get_post_by_id
-from src.api.dependencies import get_current_user
+from src.api.dependencies import RateLimiter, get_current_user
 from src.core.database import get_db
 from src.users.models import User
 from src.social_accounts.repository import get_social_accounts
 from src.social_accounts.router import PLATFORMS
 
 
-router = APIRouter(tags=["Posts"])
+router = APIRouter(tags=["Posts"], dependencies=[Depends(RateLimiter(max_requests=100, window_seconds=60))])
+
 
 async def _process_post(post: Post, platforms: List[str], accounts_map: dict, db: AsyncSession):
     try:
