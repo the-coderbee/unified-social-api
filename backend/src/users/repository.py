@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.users.models import User
-from src.users.schemas import UserCreate
+from src.auth.schemas import UserCreate
 from src.core.security import get_password_hash
 
 

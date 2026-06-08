@@ -9,7 +9,7 @@ from src.social_accounts.schemas import SocialAccountResponse, SocialLinkRequest
 from src.users.models import User
 from src.api.dependencies import get_current_user
 from src.social_accounts.repository import link_social_account, get_social_accounts, unlink_social_account
-from backend.src.social_accounts.services import get_platform_instance
+from src.social_accounts.services import get_platform_instance
 
 router = APIRouter(tags=["Social Accounts"])
 

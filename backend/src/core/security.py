@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
-import uuid
+from typing import Optional
 import jwt
 from passlib.context import CryptContext
 import secrets

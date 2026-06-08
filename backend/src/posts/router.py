@@ -2,7 +2,6 @@ import asyncio
 from typing import List
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.posts.schemas import PostCreate, PostResponse, PostPlatformResultCreate
@@ -12,7 +11,7 @@ from src.api.dependencies import RateLimiter, get_current_user
 from src.core.database import get_db
 from src.users.models import User
 from src.social_accounts.repository import get_social_accounts
-from backend.src.social_accounts.services import get_valid_access_token, get_platform_instance
+from src.social_accounts.services import get_valid_access_token, get_platform_instance
 
 
 router = APIRouter(tags=["Posts"], dependencies=[Depends(RateLimiter(max_requests=100, window_seconds=60))])
