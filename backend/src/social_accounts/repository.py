@@ -73,6 +73,9 @@ async def update_social_account_tokens(
     result = await db.execute(query)
     account = result.scalar_one_or_none()
     
+    if expires_in:
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    
     if not account:
         raise ValueError("Social account not found")
     
@@ -82,7 +85,7 @@ async def update_social_account_tokens(
         
     account.expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
     
-    await db.commit()
+    await db.flush()
     await db.refresh(account)
     
     return account
@@ -91,3 +94,18 @@ async def get_social_accounts(db: AsyncSession, user_id: uuid.UUID) -> List[Soci
     query = select(SocialAccount).where(SocialAccount.user_id == user_id)
     result = await db.execute(query)
     return result.scalars().all()
+
+
+async def unlink_social_account(db: AsyncSession, platform_name: str, user_id: uuid.UUID) -> bool:
+    query = select(SocialAccount).where(
+        SocialAccount.platform == platform_name,
+        SocialAccount.user_id == user_id
+    )
+    result = await db.execute(query)
+    account = result.scalar_one_or_none()
+    
+    if account:
+        await db.delete(account)
+        await db.flush()
+        return True
+    return False

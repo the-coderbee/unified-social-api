@@ -80,6 +80,34 @@ class XPlatform(SocialPlatform):
                 "expires_in": data.get("expires_in"),
             }
     
+    async def refresh_access_token(self, refresh_token: str):
+        auth_string = f"{self.client_id}:{self.client_secret}"
+        b64_auth = base64.b64encode(auth_string.encode()).decode()
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.TOKEN_URL,
+                headers = {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": f"Basic {b64_auth}"
+                },
+                data = {
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                    "client_id": self.client_id
+                }
+            )
+            
+            if response.status_code != 200:
+                raise Exception(f"X token refresh failed: {response.text}")
+            
+            data = response.json()
+            
+            return {
+                "access_token": data.get("access_token"),
+                "refresh_token": data.get("refresh_token"),
+                "expires_in": data.get("expires_in"),
+            }
+    
     async def fetch_user_profile(self, access_token: str):
         async with httpx.AsyncClient() as client:
             response = await client.get(

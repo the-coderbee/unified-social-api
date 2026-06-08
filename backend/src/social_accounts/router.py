@@ -1,37 +1,21 @@
 import secrets
-from typing import Dict
-import uuid
+from typing import List
 from fastapi import APIRouter, HTTPException, Depends, status
-from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.social_accounts.platforms.base import SocialPlatform
-from src.social_accounts.models import SocialAccount
-from src.social_accounts.platforms.x import XPlatform
 from src.core.database import get_db
-from src.social_accounts.schemas import SocialLinkRequest
+from src.social_accounts.schemas import SocialAccountResponse, SocialLinkRequest
 from src.users.models import User
 from src.api.dependencies import get_current_user
-from src.social_accounts.repository import link_social_account
-from src.social_accounts.platforms.discord import DiscordPlatform
+from src.social_accounts.repository import link_social_account, get_social_accounts, unlink_social_account
+from backend.src.social_accounts.services import get_platform_instance
 
 router = APIRouter(tags=["Social Accounts"])
 
-PLATFORMS: Dict[str, SocialPlatform] = {
-    "discord": DiscordPlatform(),
-    "x": XPlatform(),
-}
-
-def get_platform(platform_name: str) -> SocialAccount:
-    platform = PLATFORMS.get(platform_name)
-    if not platform:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform is not supported")
-    return platform
-
 @router.get("/login/{platform_name}")
 async def get_login_url(platform_name: str):
-    platform = get_platform(platform_name)
+    platform = get_platform_instance(platform_name)
     if not platform:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform is not supported")
     
@@ -42,7 +26,7 @@ async def get_login_url(platform_name: str):
 
 @router.get("/{platform_name}/callback")
 async def callback(platform_name: str, code: str, state: str, db: AsyncSession = Depends(get_db)):
-    platform = get_platform(platform_name)
+    platform = get_platform_instance(platform_name)
     
     try:
         token_data = await platform.exchange_code_for_token(code)
@@ -82,7 +66,7 @@ async def link_account(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    platform = get_platform(platform_name)
+    platform = get_platform_instance(platform_name)
     
     try:
         token_data = await platform.exchange_code_for_token(payload.code, payload.state)
@@ -114,3 +98,21 @@ async def link_account(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"OAuth exchange failed: {str(e)}"
         )
+
+
+@router.get("/accounts", response_model=List[SocialAccountResponse])
+async def list_linked_accounts(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await get_social_accounts(db, current_user.id)
+
+
+@router.delete("/{platform_name}/unlink", status_code=status.HTTP_204_NO_CONTENT)
+async def unlink_account(platform_name: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await unlink_social_account(db, platform_name, current_user.id)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Account not found: {platform_name}")
+    
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to unlink account: {str(e)}")

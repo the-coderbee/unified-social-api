@@ -1,21 +1,29 @@
+from typing import Dict
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone, timedelta
 
+from src.social_accounts.platforms.base import SocialPlatform
+from src.social_accounts.platforms.x import XPlatform
 from src.social_accounts.models import SocialAccount
 from src.social_accounts.platforms.discord import DiscordPlatform
 from src.social_accounts.repository import update_social_account_tokens
 
+PLATFORMS: Dict[str, SocialPlatform] = {
+    "discord": DiscordPlatform(),
+    "x": XPlatform(),
+}
 
 def get_platform_instance(platform_name: str):
-    if platform_name == "discord":
-        return DiscordPlatform()
-    raise ValueError(f"Unsupported platform: {platform_name}")
-
+    platform = PLATFORMS.get(platform_name)
+    if not platform:
+        raise ValueError(f"Unsupported platform: {platform_name}")
+    return platform
 
 async def get_valid_access_token(db: AsyncSession, account: SocialAccount) -> str:
     buffer_time = datetime.now(timezone.utc) + timedelta(minutes=5)
     
-    if account.expires_at and account.expires_at > buffer_time:
+    if account.expires_at or account.expires_at > buffer_time:
         return account.access_token
     
     if not account.refresh_token:

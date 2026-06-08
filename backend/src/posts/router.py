@@ -12,7 +12,7 @@ from src.api.dependencies import RateLimiter, get_current_user
 from src.core.database import get_db
 from src.users.models import User
 from src.social_accounts.repository import get_social_accounts
-from src.social_accounts.router import PLATFORMS
+from backend.src.social_accounts.services import get_valid_access_token, get_platform_instance
 
 
 router = APIRouter(tags=["Posts"], dependencies=[Depends(RateLimiter(max_requests=100, window_seconds=60))])
@@ -24,7 +24,8 @@ async def _process_post(post: Post, platforms: List[str], accounts_map: dict, db
         for platform in platforms:
             account = accounts_map.get(platform)
             if account:
-                tasks.append((platform, PLATFORMS.get(platform).publish_post(account.access_token, post.content)))
+                token = await get_valid_access_token(db, account)
+                tasks.append((platform, get_platform_instance(platform).publish_post(token, post.content)))
 
         results = await asyncio.gather(*[task[1] for task in tasks], return_exceptions=True)
         

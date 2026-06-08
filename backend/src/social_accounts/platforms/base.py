@@ -45,6 +45,17 @@ class SocialPlatform(ABC):
         ...
     
     @abstractmethod
+    async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+        """
+        Use the refresh token to obtain a new access token when the old one expires.
+        Must return a dictionary containing at least:
+        - access_token (str)
+        - refresh_token (str | None)
+        - expires_in (int)
+        """
+        ...
+    
+    @abstractmethod
     async def fetch_user_profile(self, access_token: str) -> Dict[str, Any]:
         """
         Fetch the user's profile data using the fresh access token.
