@@ -44,18 +44,12 @@ class DiscordPlatform(SocialPlatform):
             token_response.raise_for_status()
             token_data = token_response.json()
             
-            user_url = "https://discord.com/api/users/@me"
-            auth_headers = {"Authorization": f"Bearer {token_data['access_token']}"}
-            user_response = await client.get(user_url, headers=auth_headers)
-            user_response.raise_for_status()
-            user_data = user_response.json()
-            
             return {
                 "access_token": token_data["access_token"],
                 "refresh_token": token_data["refresh_token"],
                 "expires_in": token_data.get("expires_in", 604800),
-                "provider_account_id": user_data["id"]
             }
+            
     async def refresh_access_token(self, refresh_token: str) -> dict:
         async with httpx.AsyncClient() as client:
             data = {
@@ -73,7 +67,13 @@ class DiscordPlatform(SocialPlatform):
             if response.status_code != 200:
                 raise Exception(f"Failed to refresh access token: {response.text}")
             
-            return response.json()
+            data = response.json()
+            
+            return {
+                "access_token": data.get("access_token"),
+                "refresh_token": data.get("refresh_token"),
+                "expires_in": data.get("expires_in", 604800)
+            }
     
     async def publish_post(self, access_token: str, content: str):
         raise NotImplementedError("Discord publishing requires webhook authorization")
@@ -99,5 +99,6 @@ class DiscordPlatform(SocialPlatform):
                 "username": data.get("username"),
                 "global_name": data.get("global_name"),
                 "avatar_url": avatar_url,
-                "metadata": data
+                "metadata": data,
+                "provider_account_id": data.get("id")
             }
