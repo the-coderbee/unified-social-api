@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { useToastStore } from '@/store/toastStore'
-import type { User, AuthTokenResponse, GoogleLoginResponse } from '../types/auth.types'
+import type { User, AuthTokenResponse, GoogleLoginResponse, GithubLoginResponse } from '../types/auth.types'
 
 export const loginFetcher = async (email: string, password: string) => {
   const form = new URLSearchParams()
@@ -62,12 +62,12 @@ export function useRegister() {
 }
 
 export const googleLoginFetcher = async () => {
-  const res = await api.post<GoogleLoginResponse>('/auth/google/login')
+  const res = await api.get<GoogleLoginResponse>('/auth/google/login')
   return res.data
 }
 
 export const googleCallbackFetcher = async (code: string, state: string) => {
-  const res = await api.post<AuthTokenResponse>('/auth/google/callback', null, {
+  const res = await api.get<AuthTokenResponse>('/auth/google/callback', {
     params: { code, state },
   })
   return res.data
@@ -106,6 +106,57 @@ export function useGoogleCallback() {
     onError: (error: { response?: { data?: { detail?: string } } }) => {
       sessionStorage.removeItem('google_oauth_state')
       const msg = error.response?.data?.detail ?? 'Google sign-in failed'
+      addToast(msg, 'error')
+      navigate('/login')
+    },
+  })
+}
+
+export const githubLoginFetcher = async () => {
+  const res = await api.get<GithubLoginResponse>('/auth/github/login')
+  return res.data
+}
+
+export const githubCallbackFetcher = async (code: string, state: string) => {
+  const res = await api.get<AuthTokenResponse>('/auth/github/callback', {
+    params: { code, state },
+  })
+  return res.data
+}
+
+export function useGithubLogin() {
+  const { addToast } = useToastStore()
+
+  return useMutation({
+    mutationFn: githubLoginFetcher,
+    onSuccess: (data) => {
+      sessionStorage.setItem('github_oauth_state', data.state)
+      window.location.href = data.authorization_url
+    },
+    onError: () => {
+      addToast('Failed to initialize GitHub sign-in', 'error')
+    },
+  })
+}
+
+export function useGithubCallback() {
+  const { setToken } = useAuthStore()
+  const { addToast } = useToastStore()
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: ({ code, state }: { code: string; state: string }) =>
+      githubCallbackFetcher(code, state),
+    onSuccess: async (data) => {
+      sessionStorage.removeItem('github_oauth_state')
+      setToken(data.access_token)
+      await queryClient.invalidateQueries({ queryKey: ['me'] })
+      navigate('/dashboard')
+    },
+    onError: (error: { response?: { data?: { detail?: string } } }) => {
+      sessionStorage.removeItem('github_oauth_state')
+      const msg = error.response?.data?.detail ?? 'GitHub sign-in failed'
       addToast(msg, 'error')
       navigate('/login')
     },

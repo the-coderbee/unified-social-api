@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Card } from '@/components/Card'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 import { GoogleAuthButton } from '@/features/auth/components/GoogleAuthButton'
+import { GitHubAuthButton } from '@/features/auth/components/GitHubAuthButton'
 
 export default function LoginPage() {
   return (
@@ -31,7 +32,10 @@ export default function LoginPage() {
             </span>
           </div>
         </div>
-        <GoogleAuthButton />
+        <div className="flex flex-col gap-2">
+          <GoogleAuthButton />
+          <GitHubAuthButton />
+        </div>
         <p className="text-sm text-text-tertiary text-center mt-5">
           Don't have an account?{' '}
           <Link

@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.users.models import User, AuthValues
-from src.auth.schemas import UserCreate, GoogleUserCreate
+from src.auth.schemas import UserCreate, GoogleUserCreate, GithubUserCreate
 from src.core.security import get_password_hash
 
 
@@ -19,7 +19,7 @@ async def get_user_by_id(db: AsyncSession, user_id: uuid.UUID | str) -> Optional
     result = await db.execute(query)
     return result.scalar_one_or_none()
 
-async def create_user(db: AsyncSession, user_in: UserCreate | GoogleUserCreate) -> User:
+async def create_user(db: AsyncSession, user_in: UserCreate | GoogleUserCreate | GithubUserCreate) -> User:
     hashed_password = None
     if user_in.auth_provider == AuthValues.LOCAL:
         hashed_password = get_password_hash(user_in.password)

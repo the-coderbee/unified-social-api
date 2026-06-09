@@ -12,6 +12,7 @@ import OAuthCallbackPage from '@/pages/dashboard/OAuthCallbackPage'
 import ComposePage from '@/pages/dashboard/ComposePage'
 import PostsPage from '@/pages/dashboard/PostsPage'
 import GoogleCallbackPage from '@/pages/GoogleCallbackPage'
+import GitHubCallbackPage from '@/pages/GitHubCallbackPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
@@ -61,6 +62,7 @@ export default function App() {
         </Route>
 
         <Route path="/auth/callback/google" element={<GoogleCallbackPage />} />
+        <Route path="/auth/callback/github" element={<GitHubCallbackPage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

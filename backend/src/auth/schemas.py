@@ -10,6 +10,10 @@ class GoogleUserCreate(UserBase):
     pass
 
 
+class GithubUserCreate(UserBase):
+    pass
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 

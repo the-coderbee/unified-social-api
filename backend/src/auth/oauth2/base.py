@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 class AuthProvider(ABC):
     """Abstract base class for OAuth2 authentication providers."""
@@ -10,7 +10,7 @@ class AuthProvider(ABC):
         pass
 
     @abstractmethod
-    async def exchange_code_for_token(self, code: str) -> Dict[str, Any]:
+    async def exchange_code_for_token(self, code: str, state: Optional[str] = None) -> Dict[str, Any]:
         """Exchange the authorization code for an access token."""
         pass
 

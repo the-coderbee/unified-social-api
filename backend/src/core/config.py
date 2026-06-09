@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_REDIRECT_URI: str
     
+    # oauth2 github
+    GITHUB_CLIENT_ID: str
+    GITHUB_CLIENT_SECRET: str
+    GITHUB_REDIRECT_URI: str
+    
     # discord 
     DISCORD_CLIENT_ID: str
     DISCORD_CLIENT_SECRET: str

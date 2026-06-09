@@ -14,3 +14,8 @@ export interface GoogleLoginResponse {
   authorization_url: string
   state: string
 }
+
+export interface GithubLoginResponse {
+  authorization_url: string
+  state: string
+}
