@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     
     REDIS_URL: RedisDsn
     
+    # oauth2 google
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_REDIRECT_URI: str
+    
     # discord 
     DISCORD_CLIENT_ID: str
     DISCORD_CLIENT_SECRET: str

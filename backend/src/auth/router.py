@@ -1,13 +1,18 @@
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.users.models import AuthValues
 from src.core.database import get_db
+from src.core.redis import redis_client
 from src.core.security import revoke_refresh_token, verify_password, create_access_token, create_refresh_token, get_user_from_refresh_token
 from src.api.dependencies import RateLimiter
 from src.users.schemas import UserResponse
-from src.auth.schemas import UserCreate, RefreshTokenRequest
+from src.auth.schemas import GoogleUserCreate, UserCreate, RefreshTokenRequest
 from src.users.repository import get_user_by_email, create_user
+from src.auth.oauth2.google import GoogleAuthProvider
 
 
 router = APIRouter(tags=['Authentication'], dependencies=[Depends(RateLimiter(max_requests=5, window_seconds=60))])
@@ -86,4 +91,66 @@ async def logout(token_request: RefreshTokenRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while logging out"
+        )
+
+@router.post("/google/login")
+async def google_oauth_login():
+    """Initialize Google OAuth2 flow."""
+    google_provider = GoogleAuthProvider()
+    state = secrets.token_urlsafe(32)
+    await redis_client.setex(f"google_oauth_state:{state}", 300, "valid")
+    
+    authorization_url = await google_provider.get_authorization_url(state)
+    return {"authorization_url": authorization_url, "state": state}
+    
+
+@router.post("/google/callback")
+async def google_oauth_callback(code: str, state: str, db: AsyncSession = Depends(get_db)):
+    """Handle Google OAuth2 callback."""
+    stored_state = await redis_client.get(f"google_oauth_state:{state}")
+    
+    if not stored_state:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired state parameter"
+        )
+    
+    await redis_client.delete(f"google_oauth_state:{state}")
+    
+    google_provider = GoogleAuthProvider()
+    user_info = await google_provider.exchange_code_for_token(code)
+    email = user_info.get("email")
+    
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to retrieve email from Google"
+        )
+    
+    user = await get_user_by_email(db, email)
+    
+    if user and user.auth_provider != AuthValues.GOOGLE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is already registered with a different authentication provider."
+        )
+    try:
+        if not user:
+            user_in = GoogleUserCreate(email=email, auth_provider=AuthValues.GOOGLE)
+            user = await create_user(db, user_in)
+            
+            await db.commit()
+        await db.refresh(user)
+        access_token = create_access_token(subject=user.id)
+        refresh_token = await create_refresh_token(user_id=str(user.id))
+        
+        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during Google OAuth2 authentication"
         )

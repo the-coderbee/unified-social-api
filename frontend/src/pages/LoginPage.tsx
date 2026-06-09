@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card } from '@/components/Card'
 import { LoginForm } from '@/features/auth/components/LoginForm'
+import { GoogleAuthButton } from '@/features/auth/components/GoogleAuthButton'
 
 export default function LoginPage() {
   return (
@@ -20,6 +21,17 @@ export default function LoginPage() {
           </p>
         </div>
         <LoginForm />
+        <div className="relative my-5">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-surface-1 px-3 text-xs text-text-tertiary uppercase tracking-wide">
+              Or continue with
+            </span>
+          </div>
+        </div>
+        <GoogleAuthButton />
         <p className="text-sm text-text-tertiary text-center mt-5">
           Don't have an account?{' '}
           <Link

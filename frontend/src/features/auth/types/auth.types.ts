@@ -9,3 +9,8 @@ export interface AuthTokenResponse {
   access_token: string
   token_type: string
 }
+
+export interface GoogleLoginResponse {
+  authorization_url: string
+  state: string
+}
