@@ -233,3 +233,7 @@ We have Abstract classes for AuthProvider and SocialPlatform. This helps us enfo
 
 ### Redis Usage
 Redis serves three purposes — fast shared state across multiple server instances, automatic TTL-based cleanup for temporary data like PKCE verifiers and refresh tokens, and efficient sorted sets for sliding window rate limiting.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
