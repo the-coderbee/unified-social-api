@@ -1,9 +1,10 @@
 # Unified Social API
+![Unified Social API](https://img.shields.io/badge/Unified_Social-API-purple?style=for-the-badge&logo=share&logoColor=white)
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-blue)
-![Redis](https://img.shields.io/badge/Redis-7+-red)
+![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green?logo=fastapi)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-blue?logo=postgresql)
+![Redis](https://img.shields.io/badge/Redis-7+-red?logo=redis)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 > Post once, Reach everywhere
@@ -186,60 +187,49 @@ Copy `.env.example` to `.env` and fill in the values.
 The API Endpoints:
 
 ### Authentication
-`[POST] /api/v1/auth/register` — Register a new user with email and password.
-`[POST] /api/v1/auth/login` — Log user in with email and password.
-`[POST] /api/v1/auth/refresh` — Generate new tokens using the refresh token. Called automatically on token expire.
-`[POST] /api/v1/auth/logout` — Log user out and revoke token access.
-`[GET] /api/v1/auth/google/login` — Log user in using Google's OAuth2.
-`[GET] /api/v1/auth/google/callback` — OAuth2 callback handler. Called automatically by Google after user authorization. Exchanges code for tokens and returns JWT.
-`[GET] /api/v1/auth/github/login` — Log user in using GitHub's OAuth2.
-`[GET] /api/v1/auth/github/callback` — OAuth2 callback handler. Called automatically by GitHub after user authorization. Exchanges code for tokens and returns JWT.
+`[POST] /api/v1/auth/register` — Register a new user with email and password. \
+`[POST] /api/v1/auth/login` — Log user in with email and password. \
+`[POST] /api/v1/auth/refresh` — Generate new tokens using the refresh token. Called automatically on token expire. \
+`[POST] /api/v1/auth/logout` — Log user out and revoke token access. \
+`[GET] /api/v1/auth/google/login` — Log user in using Google's OAuth2. \
+`[GET] /api/v1/auth/google/callback` — OAuth2 callback handler. Called automatically by Google after user authorization. Exchanges code for tokens and returns JWT. \
+`[GET] /api/v1/auth/github/login` — Log user in using GitHub's OAuth2. \
+`[GET] /api/v1/auth/github/callback` — OAuth2 callback handler. Called automatically by GitHub after user authorization. Exchanges code for tokens and returns JWT. \
 
 ### Users
-`[GET] /api/v1/users/me` — Get the currently logged in user.
+`[GET] /api/v1/users/me` — Get the currently logged in user. \
 
 ### Social Accounts
-`[GET] /api/v1/social/login/{platform_name}` — Get login url for the specified platform.
-`[POST] /api/v1/social/{platform_name}/link` — Link the specified social platform.
-`[DELETE] /api/v1/social/{platform_name}/unlink` — Unlink the specified social platform.
-`[GET] /api/v1/social/accounts` — Get all linked social accounts
+`[GET] /api/v1/social/login/{platform_name}` — Get login url for the specified platform. \
+`[POST] /api/v1/social/{platform_name}/link` — Link the specified social platform. \
+`[DELETE] /api/v1/social/{platform_name}/unlink` — Unlink the specified social platform. \
+`[GET] /api/v1/social/accounts` — Get all linked social accounts. \
 
 ### Posts
-`[POST] /api/v1/posts/` — Create new post.
-`[GET] /api/v1/posts/` — Get all posts. Filters can be applied through params.
-`[POST] /api/v1/posts/{post_id}/retry` — Retry a failed post.
-`[GET] /api/v1/posts/{post_id}` — Get a specific post by its ID.
+`[POST] /api/v1/posts/` — Create new post. \
+`[GET] /api/v1/posts/` — Get all posts. Filters can be applied through params. \
+`[POST] /api/v1/posts/{post_id}/retry` — Retry a failed post. \
+`[GET] /api/v1/posts/{post_id}` — Get a specific post by its ID. \
 
 ## Architecture
 
 ### Vertically Scaled Module Structure
-```text
 It follows a four-file module pattern i.e. models, schemas, router, repository in a single module. The reasoning? When we add a new feature we just add another module but without it if we would have to modify model, schema, repository and router stored at different places.
 
 We would also have to assume the files will start getting bigger and bigger we store all in a single file.
-```
 
 ### Repository Pattern
-```text
 We separate db queries from route handlers and this keeps things structured and isolated making it job specific. Repository files have the db queries in it so whenever we find database query error we know where to find. Similarly for router files, the job is to manage the endpoint and handle upper layer logic.
-```
 
 ### Transaction Pattern
-```text
 Transaction pattern means we dont commit in repository logic. Why? Because if we commit and we encounter errors we are presented with a situation with bad data in our database. we dont want that. Instead, if we just flush to db and only commit when endpoint logic is successful or else we rollback. Keeping this possibility open helps us avoid the database integrity.
-```
 
 ### Service Layer
-```text
 By using the service layer approach for platform logic we isolate all the business logic for integrating external API and handling their security to a module. This makes the system loosely coupled. Issues with external API wont impact our router endpoints.
-```
+
 
 ### Abstract Base Classes
-```text
 We have Abstract classes for AuthProvider and SocialPlatform. This helps us enforce the necessary implementations before hand. Since the platforms follow similar pattern, whenever we add new platforms we know what needs to be done. And instead of running into error at runtime we know it before so if we forget to implement it wont run.
-```
 
 ### Redis Usage
-```text
 Redis serves three purposes — fast shared state across multiple server instances, automatic TTL-based cleanup for temporary data like PKCE verifiers and refresh tokens, and efficient sorted sets for sliding window rate limiting.
-```
