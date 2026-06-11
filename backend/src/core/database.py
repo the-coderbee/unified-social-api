@@ -1,5 +1,11 @@
+"""
+The database connection and initialization file.
+"""
+
 from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+
 from src.core.config import settings
 
 engine = create_async_engine(

@@ -1,12 +1,26 @@
-from src.auth.oauth2.base import AuthProvider
-from src.core.config import settings
-from urllib.parse import urlencode
-import httpx
+"""
+Google Auth Provider class.
+
+Implements the necessary methods from AuthProvider base class for integrating Google OAuth.
+"""
+
 from typing import Dict, Any
+
 import jwt
+import httpx
+from urllib.parse import urlencode
+
+from src.core.config import settings
+from src.auth.oauth2.base import AuthProvider
 
 
 class GoogleAuthProvider(AuthProvider):
+    """
+    Google OAuth2 authentication provider.
+    
+    Requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and
+    GOOGLE_REDIRECT_URI to be set in environment variables.
+    """
     
     def __init__(self):
         self.client_id = settings.GOOGLE_CLIENT_ID
@@ -17,6 +31,15 @@ class GoogleAuthProvider(AuthProvider):
         self.user_info_endpoint = "https://www.googleapis.com/oauth2/v3/userinfo"
         
     async def get_authorization_url(self, state: str) -> str:
+        """
+        Contructs the authorization url using google's required parameters encoded into it.
+        
+        Args:
+            state: The state parameter used for preventing csrf attacks.
+        
+        Returns:
+            The authentication url to redirect user to in string format.
+        """
         params = {
             "client_id": self.client_id,
             "redirect_uri": self.redirect_uri,
@@ -28,6 +51,21 @@ class GoogleAuthProvider(AuthProvider):
         return f"{self.authorization_endpoint}?{urlencode(params)}"
     
     async def exchange_code_for_token(self, code: str) -> Dict[str, Any]:
+        """
+        Exchange OAuth authorization code for access tokens.
+        
+        Decodes the ID token returned by Google to extract user info directly,
+        avoiding a separate profile API call.
+        
+        Args:
+            code: The authorization code from the oauth redirect.
+        
+        Returns:
+            Dictionary containing:
+                email (str): The user's email address.
+                name (str): The user's display name.
+                picture (Optional[str]): The user's profile picture url.
+        """
         data = {
             "code": code,
             "client_id": self.client_id,
@@ -49,6 +87,7 @@ class GoogleAuthProvider(AuthProvider):
             }
 
     async def get_user_info(self, access_token: str) -> Dict[str, Any]:
+        """Fetches user info from the authentication provider."""
         headers = {"Authorization": f"Bearer {access_token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(self.user_info_endpoint, headers=headers)

@@ -1,112 +1,153 @@
-import secrets
+"""
+Social accounts router handling account registration, authentication, linking, 
+unlinking and management.
+
+Endpoints:
+    GET /login/{platform_name}     — Get the login url of the social account.
+    POST /{plaform_name}/link    — Connect the social account to the user.
+    DELETE /{plaform_name}/unlink    — Disconnect the social account from the user.
+    GET /accounts    — Fetch all connected social accounts of the user.
+"""
+
 from typing import List
+import secrets
+
 from fastapi import APIRouter, HTTPException, Depends, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.social_accounts.schemas import SocialAccountResponse, SocialLinkRequest
+from src.core.redis import redis_client
+from src.api.dependencies import get_current_user, RateLimiter
 from src.users.models import User
-from src.api.dependencies import get_current_user
+from src.social_accounts.schemas import SocialAccountResponse, SocialLinkRequest
 from src.social_accounts.repository import link_social_account, get_social_accounts, unlink_social_account
 from src.social_accounts.services import get_platform_instance
 
-router = APIRouter(tags=["Social Accounts"])
+
+router = APIRouter(tags=["Social Accounts"], dependencies=[Depends(RateLimiter(max_requests=5, window_seconds=60))])
+
 
 @router.get("/login/{platform_name}")
 async def get_login_url(platform_name: str):
-    platform = get_platform_instance(platform_name)
-    if not platform:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform is not supported")
+    """
+    Get the login url for the social account with a secure state.
     
-    secure_state = secrets.token_urlsafe(16)
+    Args:
+        platform_name: The name of the platform to log into.
     
-    auth_url = await platform.get_login_url(secure_state)
-    return {"auth_url": auth_url}
-
-@router.get("/{platform_name}/callback")
-async def callback(platform_name: str, code: str, state: str, db: AsyncSession = Depends(get_db)):
-    platform = get_platform_instance(platform_name)
+    Returns:
+        Dictionary containing:
+            auth_url: The authorization_url.
+            state: The urlsafe token for preventing csrf attacks.
     
+    Raises:
+        HTTPException 404: If the provided platform name is not supported.
+        HTTPException 500: If there is an internal server error.
+    """
     try:
-        token_data = await platform.exchange_code_for_token(code)
+        platform = get_platform_instance(platform_name)
+        state = secrets.token_urlsafe(16)
         
-        user_result = await db.execute(select(User).limit(1))
-        current_user = user_result.scalar_one_or_none()
+        await redis_client.setex(f"social:oauth:state:{state}", 300, "valid")
         
-        if not current_user:
-            current_user = User(email="dev@unifiedapi.com", hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96y3rNrwDTU789C0p74K5048cG")  # Replace with actual hashed password
-            db.add(current_user)
-            await db.flush()
-        
-        saved_account = await link_social_account(
-            db=db,
-            user_id=current_user.id,
-            platform_name=platform.platform_name,
-            provider_account_id=token_data["provider_account_id"],
-            access_token=token_data["access_token"],
-            refresh_token=token_data.get("refresh_token"),
-            expires_in=token_data.get("expires_in", 0)
-        )
-        
-        await db.commit()
-        
-        return {
-            "status": "success",
-            "message": f"Successfully authenticated with {platform_name.capitalize()}!",
-            "internal_account_id": saved_account.id
-        }
+        auth_url = await platform.get_login_url(state)
+        return {"auth_url": auth_url, "state": state}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"OAuth exchange failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An internal server error occured: {str(e)}"
+        )
 
-@router.post("/{platform_name}/link")
+@router.post("/{platform_name}/link", response_model=SocialAccountResponse)
 async def link_account(
     platform_name: str,
     payload: SocialLinkRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    platform = get_platform_instance(platform_name)
+    """
+    Link the social account to the users local account.
     
+    Args:
+        platform_name: The name of the platform to link to.
+        payload: The pydantic object containing the authorization code and state.
+        current_user: The dependency function used for getting the current user before handling the request.
+        db: The active database session for persisting account linking.
+    
+    Returns:
+        The newly created social account.
+    
+    Raises:
+        HTTPException 401: If the access token is missing from payload.
+        HTTPException 404: If no account ID is found for the requested platform.
+        HTTPException 500: If there is an internal server error.
+    """
     try:
-        token_data = await platform.exchange_code_for_token(payload.code, payload.state)
+        platform = get_platform_instance(platform_name)
+        stored_state = await redis_client.get(f"social:oauth:state:{payload.state}")
+        if not stored_state:
+            raise HTTPException(status_code=400, detail="Invalid or expired state")
         
-        profile_data = await platform.fetch_user_profile(token_data["access_token"])
-
-        saved_account = await link_social_account(
+        await redis_client.delete(f"social:oauth:state:{payload.state}")
+        token_response = await platform.exchange_code_for_token(payload.code, payload.state)
+        access_token, refresh_token = token_response.get("access_token"), token_response.get("refresh_token")
+        if not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail=f"Missing access token."
+            )
+        
+        user_profile_response = await platform.fetch_user_profile(access_token)
+        provider_account_id = user_profile_response.get("provider_account_id")
+        if not provider_account_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"No account ID found for the platform {platform_name}"
+            )
+        
+        new_social_account = await link_social_account(
             db=db,
             user_id=current_user.id,
-            platform_name=platform.platform_name,
-            access_token=token_data["access_token"],
-            refresh_token=token_data.get("refresh_token"),
-            expires_in=token_data.get("expires_in", 0),
-            provider_account_id=profile_data.get("provider_account_id"),
-            username=profile_data.get("username"),
-            global_name=profile_data.get("global_name"),
-            avatar_url=profile_data.get("avatar_url")
+            platform_name=platform_name,
+            provider_account_id=provider_account_id,
+            access_token=access_token, 
+            refresh_token=refresh_token, 
+            expires_in=token_response.get("expires_in"), 
+            username=user_profile_response.get("username"),
+            global_name=user_profile_response.get("global_name"),
+            avatar_url=user_profile_response.get("avatar_url"),
+            profile_metadata=user_profile_response.get("metadata")
         )
         
         await db.commit()
-        
-        return {
-            "status": "success",
-            "message": f"Successfully linked {platform_name.capitalize()} to {current_user.email}!",
-        }
-    
+        await db.refresh(new_social_account)
+        return new_social_account
+    except HTTPException:
+        raise
     except Exception as e:
+        await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"OAuth exchange failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An internal server error occured: {str(e)}"
         )
-
-
-@router.get("/accounts", response_model=List[SocialAccountResponse])
-async def list_linked_accounts(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    return await get_social_accounts(db, current_user.id)
-
-
+    
 @router.delete("/{platform_name}/unlink", status_code=status.HTTP_204_NO_CONTENT)
 async def unlink_account(platform_name: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """
+    Unlink the social account provided.
+    
+    Args:
+        platform_name: The platform to unlink.
+        current_user: The dependency function used for getting the current user before handling the request.
+        db: The active database session for persisting account unlinking.
+    
+    Raises:
+        HTTPException 404: If the account is not found.
+        HTTPException 400: If unlinking the account fails.
+    """
+    
     result = await unlink_social_account(db, platform_name, current_user.id)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Account not found: {platform_name}")
@@ -116,3 +157,8 @@ async def unlink_account(platform_name: str, current_user: User = Depends(get_cu
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to unlink account: {str(e)}")
+
+@router.get("/accounts", response_model=List[SocialAccountResponse])
+async def list_linked_accounts(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Fetches all linked accounts for the user."""
+    return await get_social_accounts(db, current_user.id)

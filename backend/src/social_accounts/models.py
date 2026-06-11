@@ -1,6 +1,13 @@
-from typing import Optional
+"""
+SQLAlchemy ORM models for social accounts.
+
+Defines Social Account model for managing account authentication and linking.
+"""
+
 import uuid
 from datetime import datetime
+from typing import Optional
+
 from sqlalchemy import String, ForeignKey, UniqueConstraint, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -9,6 +16,12 @@ from src.common.models import Base, TimestampMixin
 
 
 class SocialAccount(Base, TimestampMixin):
+    """
+    Represents a Social Account platform in the system.
+    
+    Stores the platform specific ID, profile details, and the tokens.
+    """
+    
     __tablename__ = "social_accounts"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)

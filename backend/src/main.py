@@ -1,16 +1,34 @@
-import src.core.base
+"""
+Application entry point for the Unified Social API.
+
+Initializes the FastAPI application with CORS middleware, database and Redis
+connection verification on startup, graceful shutdown handling, and API router registration.
+"""
+
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 from sqlalchemy import text
 
+import src.core.base
 from src.core.database import engine
 from src.core.redis import redis_client
+from src.core.config import settings
 from src.api.v1 import api_router
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
+    """
+    Manages application lifespan events.
+    
+    On startup: verifies PostgreSQL and Redis connections are healthy.
+    On shutdown: gracefully closes all database and Redis connections.
+    
+    Raises:
+        Exception: If database or Redis connection fails on startup.
+    """
     try:
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
@@ -33,15 +51,16 @@ app = FastAPI(title="Unified Social API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 app.include_router(api_router)
 
 @app.get("/")
 def read_root():
+    """Health check endpoint."""
     return {"status": "The API is alive and running."}
 

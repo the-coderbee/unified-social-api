@@ -1,6 +1,14 @@
+"""
+SQLAlchemy ORM models for post publishing.
+
+Defines the Post and PostPlatformResult models, PostStatus and PostResultStatus enums for 
+managing the post results.
+"""
+
 import enum
-from typing import List, Optional
 import uuid
+from typing import List, Optional
+
 from sqlalchemy import String, Text, Boolean, ForeignKey, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -9,6 +17,7 @@ from src.common.models import Base, TimestampMixin
 
 
 class PostStatus(enum.Enum):
+    """Post Status enums"""
     PENDING = "PENDING"
     SUCCESS = "SUCCESS"
     PARTIAL_SUCCESS = "PARTIAL_SUCCESS"
@@ -16,11 +25,19 @@ class PostStatus(enum.Enum):
 
 
 class PostResultStatus(enum.Enum):
+    """Post result status enums"""
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
     
 
 class Post(Base, TimestampMixin):
+    """
+    Represents a published post in the system.
+    
+    Supports options in json format for specific platforms.
+    Stores individual platform's results to make retry possible for specific platforms.
+    """
+    
     __tablename__ = "posts"
     
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -35,6 +52,12 @@ class Post(Base, TimestampMixin):
 
 
 class PostPlatformResult(Base, TimestampMixin):
+    """
+    Represents publishing results for individual platforms.
+    
+    Contains post url for successful publish and error message otherwise.
+    """
+    
     __tablename__ = "post_platform_results"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

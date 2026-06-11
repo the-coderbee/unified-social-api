@@ -1,15 +1,26 @@
+"""
+Posts router handling post registration, retry, and post status updation.
+
+Endpoints:
+    POST /     — Register and publish a new post in the system.
+    GET /     — Fetch all posts for the current user.
+    POST /{post_id}/retry     — Retry the failed post by post ID.
+    GET /{post_id}     — Fetch post by post ID for the current user.
+"""
+
 import asyncio
 from typing import List
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.database import get_db
+from src.api.dependencies import RateLimiter, get_current_user
+from src.users.models import User
 from src.posts.schemas import PostCreate, PostResponse, PostPlatformResultCreate
 from src.posts.models import Post, PostResultStatus, PostStatus
 from src.posts.repository import create_post as create_post_db, create_post_platform_result, get_posts as get_posts_db, get_post_by_id
-from src.api.dependencies import RateLimiter, get_current_user
-from src.core.database import get_db
-from src.users.models import User
 from src.social_accounts.repository import get_social_accounts
 from src.social_accounts.services import get_valid_access_token, get_platform_instance
 
@@ -18,6 +29,25 @@ router = APIRouter(tags=["Posts"], dependencies=[Depends(RateLimiter(max_request
 
 
 async def _process_post(post: Post, platforms: List[str], accounts_map: dict, db: AsyncSession):
+    """
+    Private function for processing and publishing posts.
+    
+    Uses asyncio gather for execution simultaneous publishing tasks to multiple platforms 
+    and gather results for each of them.
+    
+    Args:
+        post: The Post object to be publshed.
+        platforms: The list of platforms to publish on.
+        accounts_map: The map object of social accounts linked to the user.
+        db: Active session for persisting the new post.
+    
+    Returns:
+        Post object and PostPlatformResults (list of publish results) as a tuple.
+    
+    Raises:
+        HTTPException 500: If internal server error occurs.
+    """
+    
     try:
         tasks = []
         for platform in platforms:
@@ -62,6 +92,25 @@ async def _process_post(post: Post, platforms: List[str], accounts_map: dict, db
 
 @router.post("/", response_model=PostResponse)
 async def create_post(post_data: PostCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Create a new post and publish it to the linked platforms.
+    
+    Args:
+        post_data: The post data obtained from the request body.
+        db: Active session for persisting the new post.
+        current_user: Dependency for fetching current user before handling the request.
+    
+    Returns:
+        Dictionary containing:
+            id (UUID): The post ID.
+            content (str): The content of the post.
+            status (PostStatus): The status of the post.
+            created_at (timestamp): The timestamp of the post creation.
+            results (List[PostPlatformResults]): The list of post platform results.
+            not_connected_platforms: The list of platforms that were provided in the argument 
+            but were found not connected.
+    """
+    
     social_accounts = await get_social_accounts(db, current_user.id)
     accounts_map = {account.platform: account for account in social_accounts}
     not_connected_platforms = [platform for platform in post_data.platforms if platform not in accounts_map]
@@ -80,6 +129,29 @@ async def create_post(post_data: PostCreate, db: AsyncSession = Depends(get_db),
 
 @router.post("/{post_id}/retry", response_model=PostResponse)
 async def retry_post(post_id: uuid.UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Retry to publish a failed post again without resubmitting the content.
+    
+    Args:
+        post_id: The ID of the post to be re-published.
+        db: Active database session for persisting post updation.
+        current_user: The dependency funtion to get the current user before handling the request.
+    
+    Returns:
+        Dictionary containing:
+            id (UUID): The post ID.
+            content (str): The content of the post.
+            status (PostStatus): The status of the post.
+            created_at (timestamp): The timestamp of the post creation.
+            results (List[PostPlatformResults]): The list of post platform results.
+            not_connected_platforms: The list of platforms that were provided in the argument 
+            but were found not connected.
+        
+    Raises:
+        HTTPException 400: If post was already successfuly published.
+        HTTPException 404: If the post associated with the provided ID does not exist.
+    """
+    
     post = await get_post_by_id(db, current_user.id, post_id)
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
@@ -98,13 +170,25 @@ async def retry_post(post_id: uuid.UUID, db: AsyncSession = Depends(get_db), cur
         "not_connected_platforms": []
     }
 
-router.get("/", response_model=list[PostResponse])
+@router.get("/", response_model=list[PostResponse])
 async def get_posts(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user), status: PostStatus = None):
+    """
+    Fetch and return a list of post objects can also be filtered by status.
+    
+    Args:
+        db: The active db session for fetching the posts.
+        current_user: The dependency function to get the current user before handling the request.
+        status: The PostStatus value to use for filtering the posts query.
+    
+    Returns:
+        A list of post objects.
+    """
     return await get_posts_db(db, current_user.id, status)
 
 
 @router.get("/{post_id}", response_model=PostResponse)
 async def get_post(post_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Fetch post for a user by post ID."""
     post = await get_post_by_id(db, current_user.id, post_id)
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")

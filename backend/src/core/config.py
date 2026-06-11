@@ -1,9 +1,25 @@
+"""
+Application configuration using Pydantic Settings.
+
+Loads environment variables from .env file and provides typed 
+access to all configuration values including JWT settings, 
+database URLs, Redis URL, and OAuth2 credentials for Google, Github, Discord, and X.
+"""
+
+from typing import List
+
 from pydantic import PostgresDsn, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
 
 
 class Settings(BaseSettings):
+    """
+    Application settings loaded from environment variables.
+    
+    All required fields must be set in the .env file.
+    Optional fields have sensible defaults.
+    """
+    
     PROJECT_NAME: str = "Unified Social API"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
@@ -12,6 +28,7 @@ class Settings(BaseSettings):
     
     @property
     def cors_origin_list(self) -> List[str]:
+        """Parse CORS_ORIGINS string into a list of allowed origins."""
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
     
     SECRET_KEY: str

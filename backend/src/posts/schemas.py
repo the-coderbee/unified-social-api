@@ -1,20 +1,38 @@
-from typing import List, Optional
+"""
+Pydantic schemas for request validation and response serialization.
+
+Defines the data shapes for post creation, platform result creation 
+and  API responses related to post management.
+"""
+
 import uuid
 from datetime import datetime
+from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict
+
 from src.posts.models import PostStatus, PostResultStatus
 
 
 class PostBase(BaseModel):
+    """Base schema for post model."""
     content: str
 
 
 class PostCreate(PostBase):
+    """
+    Schema for creating a new post.
+    
+    Excludes user ID, status and platform results because user ID it 
+    will be passed internally and status and platform results will be 
+    obtained from post platform results.
+    """
     platforms: List[str]
     options: Optional[dict] = None
 
 
 class PostPlatformResultCreate(BaseModel):
+    """Schema for creating a new post platfrom result record."""
     platform_name: str
     status: PostResultStatus
     post_url: Optional[str] = None
@@ -22,6 +40,7 @@ class PostPlatformResultCreate(BaseModel):
 
 
 class PostPlatformResultResponse(BaseModel):
+    """Response schema for post platform results."""
     platform_name: str
     status: PostResultStatus
     post_url: Optional[str] = None
@@ -31,6 +50,7 @@ class PostPlatformResultResponse(BaseModel):
 
 
 class PostResponse(PostBase):
+    """Response schema for post."""
     id: uuid.UUID
     status: PostStatus
     created_at: datetime

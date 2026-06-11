@@ -7,10 +7,11 @@ class SocialPlatform(ABC):
     The master contract for all social media integrations.
     Any new platform added to the API **must** implement these exact methods.
     """
+    
     @property
     @abstractmethod
     def platform_name(self) -> str:
-        """The internal identifier for the platform (e.g., 'facebook', 'twitter')"""
+        """The internal identifier for the platform (e.g., 'discord', 'twitter')"""
         ...
         
     @property
@@ -28,8 +29,12 @@ class SocialPlatform(ABC):
     
     @abstractmethod
     async def get_login_url(self, state: str) -> str:
-        """Generate the OAuth2 authorization URL for the platform.
+        """
+        Generate the OAuth2 authorization URL for the platform.
         The state parameter is required to prevent CSRF attacks during redirect.
+        
+        Returns:
+            The login url for the platform as a string.
         """
         ...
     
@@ -37,21 +42,25 @@ class SocialPlatform(ABC):
     async def exchange_code_for_token(self, code: str, state: Optional[str] = None) -> Dict[str, Any]:
         """
         Exchange the OAuth2 authorization code for an access token.
-        Must return a dictionary containing at least:
-        - access_token (str)
-        - refresh_token (str | None)
-        - expires_in (int)
+        
+        Returns:
+            Dictionary containing:
+                - access_token (str): The Bearer token obtained by code exchange.
+                - refresh_token (Optional[str]): The refresh token obtained by code exchange.
+                - expires_in (Optional[int]): The expiration time of access token in seconds.
         """
         ...
     
     @abstractmethod
     async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
         """
-        Use the refresh token to obtain a new access token when the old one expires.
-        Must return a dictionary containing at least:
-        - access_token (str)
-        - refresh_token (str | None)
-        - expires_in (int)
+        Use the refresh token to obtain a new access token when the old ones are revoked.
+        
+        Returns:
+            Dictionary containing:
+                - access_token (str): The Bearer token obtained by code exchange.
+                - refresh_token (Optional[str]): The refresh token obtained by code exchange.
+                - expires_in (Optional[int]): The expiration time of access token in seconds.
         """
         ...
     
@@ -59,12 +68,14 @@ class SocialPlatform(ABC):
     async def fetch_user_profile(self, access_token: str) -> Dict[str, Any]:
         """
         Fetch the user's profile data using the fresh access token.
-        Must return a dictionary containing:
-        - username (str | None)
-        - global_name (str | None)
-        - avatar_url (str | None)
-        - metadata (dict) -> The raw JSON response for the JSONB escape hatch
-        - provider_account_id (str | None)
+        
+        Returns:
+            Dictionary containing:
+                - provider_account_id (str): The account ID associated with the platform.
+                - username (Optional[str]): The username associated with the platform.
+                - global_name (Optional[str]): The display/global name associated with the platform.
+                - avatar_url (Optional[str]): The user's profile picture url.
+                - metadata (Optional[dict]): The raw JSON response for the JSONB escape hatch.
         """
         ...
     
