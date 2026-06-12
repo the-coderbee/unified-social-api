@@ -88,7 +88,7 @@ async def revoke_refresh_token(token: str):
 
 def hash_api_key(api_key: str) -> str:
     """Hash API Key."""
-    return hashlib.sha256(api_key.encode()).digest.hex()
+    return hashlib.sha256(api_key.encode()).digest().hex()
 
 def generate_api_key_and_hash() -> Tuple[str, str, str]:
     """Generates an API Key and returns the key, prefix and its hash."""

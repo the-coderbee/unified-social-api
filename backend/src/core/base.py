@@ -9,3 +9,4 @@ from src.common.models import Base
 from src.users.models import User
 from src.social_accounts.models import SocialAccount
 from src.posts.models import Post, PostResultStatus
+from src.api_keys.models import APIKey

@@ -26,7 +26,7 @@ class APIKey(Base, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     # hashed key
     hashed_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    key_prefix: Mapped[str] = mapped_column(String(8), nullable=False)
+    key_prefix: Mapped[str] = mapped_column(String(12), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     scopes: Mapped[list] = mapped_column(JSONB, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
