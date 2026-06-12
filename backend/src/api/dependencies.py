@@ -16,17 +16,46 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.database import get_db
 from src.core.redis import redis_client
+from src.core.security import hash_api_key
 from src.users.models import User
 from src.users.repository import get_user_by_id
+from src.api_keys.repository import get_api_key_by_hash
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
+
+async def _get_current_user_from_api_key(api_key: str, db: AsyncSession) -> Optional[User]:
+    """
+    Get current user using api key.
+    
+    Args:
+        api_key: The api key obtained from the request header.
+        db: The current active database session.
+    
+    Returns:
+        A user if the api key is valid, None otherwise.
+    """
+    
+    api_hash = hash_api_key(api_key)
+    
+    user_id = await redis_client.get(f"api_key_cache:{api_hash}")
+    
+    if not user_id:
+        api_key_obj = await get_api_key_by_hash(db=db, hashed_key=api_hash)
+        
+        if not api_key_obj:
+            return None
+        user_id = api_key_obj.user_id
+        await redis_client.setex(f"api_key_cache:{api_hash}", 900, str(user_id))
+    return await get_user_by_id(db=db, user_id=user_id)
+
+async def get_current_user(request: Request, token: Optional[str] = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
     """
     A dependency method used to fetch user before authentication protected routes are allowed to access.
     
     Args:
+        request: The request object.
         token: The access token from the request header for user verification.
         db: The get db dependency injection which provided db sessions for each endpoint.
     
@@ -45,32 +74,42 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     )
     
     try:
-        payload = jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM]
-        )
-        
-        user_id: Optional[str] = payload.get("sub")
-        if user_id is None:
+        api_key = request.headers.get("X-API-Key")
+        if api_key:
+            user = await _get_current_user_from_api_key(api_key=api_key, db=db)
+            if user: 
+                return user
             raise credentials_exception
-        
+        if token:
+            payload = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                algorithms=[settings.ALGORITHM]
+            )
+            
+            user_id: Optional[str] = payload.get("sub")
+            user = await get_user_by_id(db, user_id)
+    
+            if user:
+                return user
+            raise credentials_exception
+        else:
+            raise credentials_exception
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
         )
-        
     except jwt.InvalidTokenError:
         raise credentials_exception
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occured."
+        )
     
-    user = await get_user_by_id(db, user_id)
-    
-    if user is None:
-        raise credentials_exception
-    
-    return user
-
 
 class RateLimiter:
     """

@@ -6,10 +6,11 @@ and refresh token management via Redis for multi-session support.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Tuple
 
 import jwt
 import secrets
+import hashlib
 from passlib.context import CryptContext
 
 from src.core.config import settings
@@ -83,3 +84,18 @@ async def get_user_from_refresh_token(token: str) -> Optional[str]:
 async def revoke_refresh_token(token: str):
     """Revoke a refresh token."""
     await redis_client.delete(f"refresh_token:{token}")
+    
+
+def hash_api_key(api_key: str) -> str:
+    """Hash API Key."""
+    return hashlib.sha256(api_key.encode()).digest.hex()
+
+def generate_api_key_and_hash() -> Tuple[str, str, str]:
+    """Generates an API Key and returns the key, prefix and its hash."""
+    token = secrets.token_urlsafe(32)
+    
+    api_key = f"usa_{token}"
+    api_key_prefix = api_key[:12]
+    hashed_key = hash_api_key(api_key)
+    
+    return api_key, api_key_prefix, hashed_key

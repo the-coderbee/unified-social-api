@@ -52,3 +52,4 @@ class User(Base, TimestampMixin):
     
     posts: Mapped[List["Post"]] = relationship(back_populates="user", cascade="all, delete-orphan") # type: ignore
     social_accounts: Mapped[List["SocialAccount"]] = relationship(back_populates="user", cascade="all, delete-orphan") # type: ignore
+    api_keys: Mapped[List["APIKey"]] = relationship(back_populates="user", cascade="all, delete-orphan") # type: ignore
