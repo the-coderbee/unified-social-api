@@ -22,7 +22,7 @@ from src.api_keys.repository import create_api_key, get_api_keys_by_user, revoke
 from src.users.models import User
 
 
-router = APIRouter(tags=["API"], dependencies=[Depends(RateLimiter(max_requests=5, window_seconds=60))])
+router = APIRouter(tags=["API"], dependencies=[Depends(RateLimiter(max_requests=20, window_seconds=60))])
 
 
 @router.post("/new", response_model=APIKeyCreateResponse)

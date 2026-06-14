@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     
     DATABASE_URL: PostgresDsn
     
+    # test database url
+    TEST_DATABASE_URL: PostgresDsn
+    
     REDIS_URL: RedisDsn
     
     # oauth2 google

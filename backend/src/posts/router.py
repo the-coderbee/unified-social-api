@@ -25,7 +25,7 @@ from src.social_accounts.repository import get_social_accounts
 from src.social_accounts.services import get_valid_access_token, get_platform_instance
 
 
-router = APIRouter(tags=["Posts"], dependencies=[Depends(RateLimiter(max_requests=100, window_seconds=60))])
+router = APIRouter(tags=["Posts"], dependencies=[Depends(RateLimiter(max_requests=30, window_seconds=60))])
 
 
 async def _process_post(post: Post, platforms: List[str], accounts_map: dict, db: AsyncSession):

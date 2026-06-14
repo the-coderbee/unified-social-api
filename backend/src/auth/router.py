@@ -59,13 +59,13 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     try:
         new_user = await create_user(db, user_in)
         await db.commit()
-        await db.refresh(new_user)
+        await db.refresh(new_user, attribute_names=["social_accounts"])
         return new_user
     except Exception as e:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while registering the user"
+            detail=f"An error occurred while registering the user: {str(e)}"
         )
 
 @router.post("/login")
@@ -150,7 +150,7 @@ async def logout(token_request: RefreshTokenRequest):
             detail=f"An error occurred while logging out: {str(e)}"
         )
 
-@router.get("/google/login")
+@router.get("/google/login", dependencies=[Depends(RateLimiter(max_requests=10, window_seconds=60))])
 async def google_oauth_login():
     """
     Initialize Google OAuth2 flow.
@@ -165,7 +165,7 @@ async def google_oauth_login():
     authorization_url = await google_provider.get_authorization_url(state)
     return {"authorization_url": authorization_url, "state": state}
 
-@router.get("/google/callback")
+@router.get("/google/callback", dependencies=[Depends(RateLimiter(max_requests=10, window_seconds=60))])
 async def google_oauth_callback(code: str, state: str, db: AsyncSession = Depends(get_db)):
     """
     Handles Google OAuth2 callback.
@@ -235,7 +235,7 @@ async def google_oauth_callback(code: str, state: str, db: AsyncSession = Depend
             detail="An error occurred during Google OAuth2 authentication"
         )
 
-@router.get("/github/login")
+@router.get("/github/login", dependencies=[Depends(RateLimiter(max_requests=10, window_seconds=60))])
 async def github_oauth_login():
     """
     Initialize Github OAuth2 flow.
@@ -250,7 +250,7 @@ async def github_oauth_login():
     
     return {"authorization_url": authorization_url, "state": state}
 
-@router.get("/github/callback")
+@router.get("/github/callback", dependencies=[Depends(RateLimiter(max_requests=10, window_seconds=60))])
 async def github_oauth_callback(code: str, state: str, db: AsyncSession = Depends(get_db)):
     """
     Handles Github OAuth2 callback.

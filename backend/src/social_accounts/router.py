@@ -24,7 +24,7 @@ from src.social_accounts.repository import link_social_account, get_social_accou
 from src.social_accounts.services import get_platform_instance
 
 
-router = APIRouter(tags=["Social Accounts"], dependencies=[Depends(RateLimiter(max_requests=5, window_seconds=60))])
+router = APIRouter(tags=["Social Accounts"], dependencies=[Depends(RateLimiter(max_requests=30, window_seconds=60))])
 
 
 @router.get("/login/{platform_name}")
