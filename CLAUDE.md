@@ -1,126 +1,36 @@
-# CLAUDE.md
+# Frontend Architecture & Workflow Instructions
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## 🗺️ Navigation & Workflow
+- **Primary Tool:** ALWAYS use `graphify` to navigate the codebase, trace dependencies, and understand component relationships unless explicitly instructed otherwise.
+- **Verify Before Writing:** Review existing components and utility files before creating new ones to prevent duplication.
 
-## Repo layout
+## 🎭 Persona: Elite Frontend Engineer
+When generating frontend code, embody these three core skills:
+1. **The Emil Kowalski approach:** Prioritize incredibly smooth micro-interactions, layout projections, physics-based animations (e.g., Framer Motion), and zero-layout-shift UI. Focus on the visceral "feel" of the application.
+2. **Impeccable Execution:** Deliver pixel-perfect, highly polished components. Ensure strict accessibility (semantic HTML, ARIA attributes, keyboard navigation) and elegantly handle all loading, error, and empty states.
+3. **Refined Product Taste:** Make autonomous, user-centric design decisions. Default to clean, modern, minimalist interfaces with excellent typography, intuitive hierarchy, and thoughtful spacing. 
 
-```
-unified-social-api/
-├── backend/          # Python/FastAPI — uv project root
-├── frontend/         # React/Vite — npm project root
-└── docker/           # docker-compose.yml (postgres + redis)
-```
+## 🛑 STRICT SYSTEM BOUNDARIES
+- **FRONTEND ONLY:** You are strictly prohibited from editing, refactoring, or writing to ANY backend files. Do not suggest backend code changes.
+- **Read-Only Context:** You are granted read-only access to the backend directories to understand API responses, review OpenAPI specs from Python/FastAPI routes, or inspect Rust serialization models. Treat all server-side logic as immutable.
 
-## Commands
+## ⚛️ React & TypeScript Standards
+- **Strict Typing:** Use TypeScript extensively. Avoid `any`. Define precise interfaces for all component props, state, and API payloads.
+- **Functional & Modular:** Write small, single-responsibility functional components. 
+- **Destructuring:** Always destructure props in the function signature.
+- **Folder Structure (Feature-Based):** - `/src/components`: Global/shared UI components (buttons, inputs, dialogs).
+  - `/src/features`: Group code by domain (e.g., `features/auth`, `features/dashboard`). Each feature should contain its own `components`, `hooks`, and `api` logic.
+  - `/src/services` or `/src/api`: Centralized API client definitions.
+- **State Management:** Keep state as close to where it's needed as possible. Prefer custom hooks for complex logic.
 
-**Backend** — all commands run from `backend/`
+## 🎨 Tailwind CSS v4 Guidelines
+- **Modern Configuration:** Utilize Tailwind v4's CSS-first approach. Define design tokens and theme variables directly in the main CSS file using the `@theme` directive, avoiding the legacy `tailwind.config.js`.
+- **Vite Integration:** Ensure `@tailwindcss/vite` is used for the build process.
+- **Class Organization:** Order utility classes logically (Layout/Position > Box Model > Typography > Visuals > Interactions). 
+- **Arbitrary Values:** Limit the use of arbitrary values (e.g., `w-[31px]`). Stick to the design system's scale to maintain consistency.
 
-```bash
-# Start infrastructure (PostgreSQL on 5433, Redis on 6379)
-docker compose -f docker/docker-compose.yml up -d   # run from repo root
-
-# Run dev server
-cd backend && uv run fastapi dev src/main.py
-
-# Database migrations (must be run from backend/)
-cd backend && uv run python -m alembic revision --autogenerate -m "description"
-cd backend && uv run python -m alembic upgrade head
-cd backend && uv run python -m alembic downgrade -1
-```
-
-**Frontend** — all commands run from `frontend/`
-
-```bash
-cd frontend && npm run dev        # starts on :5173
-cd frontend && npm run typecheck  # tsc --noEmit
-cd frontend && npm run build
-```
-
-Environment variables live in `backend/.env`. Required keys: `SECRET_KEY`, `DATABASE_URL`, `REDIS_URL`, and Discord OAuth credentials (`DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI`).
-
-> **Discord OAuth:** set `DISCORD_REDIRECT_URI=http://localhost:5173/dashboard/accounts/callback/discord` so the OAuth callback lands in the frontend.
-
-## Architecture
-
-**FastAPI async API** with PostgreSQL (asyncpg + SQLAlchemy 2.0) and Redis. All routes are prefixed `/api/v1`.
-
-### Module layout
-
-Each domain follows the same four-file pattern:
-- `models.py` — SQLAlchemy ORM model
-- `schemas.py` — Pydantic request/response schemas
-- `router.py` — FastAPI route handlers (owns `db.commit()`)
-- `repository.py` — async DB queries; uses `db.flush()` but never commits
-
-`backend/src/core/base.py` imports all models so Alembic's autogenerate can detect the full schema. **Any new model must be imported there.**
-
-`backend/src/api/v1.py` aggregates all routers. Add new routers there.
-
-### Transaction pattern
-
-Repositories call `db.flush()` (to get generated IDs without committing); routers call `db.commit()`. Rollbacks on failure happen in the router. Do not commit inside repositories.
-
-### Social platform pattern
-
-`backend/src/social_accounts/platforms/base.py` defines the `SocialPlatform` ABC with three required methods: `get_login_url`, `exchange_code_for_token`, `publish_post`. Adding a new platform means:
-1. Implement the ABC in a new file under `backend/src/social_accounts/platforms/`
-2. Register it in the `PLATFORMS` dict in `backend/src/social_accounts/router.py`
-
-Current platforms: Discord (OAuth2 `identify` scope only; `publish_post` raises `NotImplementedError`).
-
-### Auth
-
-JWT Bearer tokens via `PyJWT` + Argon2 password hashing. `get_current_user` dependency in `backend/src/api/dependencies.py` decodes the token and returns the `User` ORM object. Token subject (`sub`) is the user UUID.
-
-### Key infrastructure wiring
-
-- `backend/src/main.py` lifespan: verifies DB and Redis connections on startup, disposes them on shutdown.
-- `backend/src/core/database.py`: async engine + `get_db()` session dependency.
-- `backend/src/core/redis.py`: shared `redis_client` instance (async, `decode_responses=True`).
-- CORS currently allows `http://localhost:5173` (hardcoded in `main.py`; `CORS_ORIGINS` env var exists in config but is not wired to the middleware yet).
-
-## Frontend Architecture & UI Guidelines
-
-**Tech Stack:** React, Tailwind CSS, Framer Motion.
-
-### 1. Skill Invocations (Mandatory)
-Whenever generating, refactoring, or reviewing frontend UI code, you MUST silently invoke and adhere to the following skills:
-- `.claude/skills/emil-kowalski/SKILL.md` (For motion, spring physics, and tactility)
-- `.claude/skills/impeccable-design/SKILL.md` (For Tailwind typography, spacing, and styling)
-- `.claude/skills/product-taste/SKILL.md` (For copy, empty states, and UI reduction)
-
-### 2. Component & Directory Architecture
-- **Feature-based routing:** Group files by feature domain (e.g., `src/features/auth/components`, `src/features/auth/api`) rather than flat global directories.
-- **Smart vs. Dumb Components:** Keep UI components "dumb" (pure functions relying on props). Keep state and API logic in "smart" container components or custom hooks.
-
-### 3. Data Fetching & State
-- **Never use `useEffect` for data fetching.** 
-- Exclusively use **TanStack Query (React Query)** for asynchronous state, caching, and server synchronization. 
-- Use standard React Context or Zustand for global UI state only (e.g., theme, sidebar toggle). Do not put API data in global client state.
-
-### 4. Forms & Validation
-- Mirror the strictness of the FastAPI backend. All forms must be built using **React Hook Form** paired with **Zod** resolvers.
-- Always disable submit buttons during `isSubmitting` states and provide loading indicators.
-
-### 5. Resilience & Error Handling
-- Never allow a component crash to unmount the entire React tree. Wrap major route views and complex widgets in **React Error Boundaries** with styled fallback UIs.
-- Handle API errors gracefully: parse the FastAPI 400/500 `detail` responses and display actionable toast notifications to the user.
-
-### 2. Component & Directory Architecture
-Never dump domain-specific files into global folders. Strictly adhere to this simplified Feature-Sliced Architecture. 
-
-**Directory Tree Standard:**
-```text
-src/
-├── components/       # GLOBAL shared UI primitives only (Button, Input, Modal)
-├── lib/              # GLOBAL utilities, axios clients, clsx/tailwind mergers
-├── hooks/            # GLOBAL custom hooks (useWindowSize, useTheme)
-├── features/         # DOMAIN-SPECIFIC code (The core of the app)
-│   ├── auth/
-│   │   ├── api/      # React Query hooks & fetchers for auth
-│   │   ├── components/ # Components strictly used only in auth (LoginForm)
-│   │   ├── hooks/    # Auth-specific react hooks
-│   │   ├── schemas/  # Zod validation schemas for auth
-│   │   └── types/    # TypeScript interfaces for auth
-│   └── assessments/  # (Another feature domain...)
-└── pages/            # OR app/ (Next.js) - Route entry points that stitch features together
+## 🔄 API Interaction Rules
+- **Isolation:** Never make fetch calls directly inside React components. 
+- **Data Fetching:** Abstract all backend interactions into dedicated async functions within a `services/` or `api/` directory. 
+- **Custom Hooks:** Consume API functions via custom hooks (e.g., React Query or SWR) to handle caching, background refetching, and loading states seamlessly.
+- **Type Syncing:** Ensure frontend types perfectly mirror the expected shapes yielded by the backend's data contracts.

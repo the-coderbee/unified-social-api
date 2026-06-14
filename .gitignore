@@ -19,3 +19,10 @@ frontend/.env
 
 # Editor
 .DS_Store
+
+.claude/
+graphify-out/
+test-results/
+.coverage
+*.pyc
+.pytest_cache/
