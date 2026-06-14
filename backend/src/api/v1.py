@@ -4,12 +4,11 @@ This module configures all the router endpoints of the API.
 
 from fastapi import APIRouter
 
-from src.users.router import router as users_router
+from src.api_keys.router import router as api_key_router
 from src.auth.router import router as auth_router
 from src.posts.router import router as posts_router
 from src.social_accounts.router import router as social_router
-from src.api_keys.router import router as api_key_router
-
+from src.users.router import router as users_router
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(social_router, prefix="/social")

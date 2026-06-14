@@ -5,24 +5,30 @@ Defines the APIKey model for managing api keys for users.
 """
 
 import uuid
+from typing import TYPE_CHECKING
 
-from sqlalchemy import String, ForeignKey, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.common.models import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from src.users.models import User
 
 
 class APIKey(Base, TimestampMixin):
     """
     Represents an API Key registered in the system.
-    
-    Included API Key status active or revoked, scopes of 
+
+    Included API Key status active or revoked, scopes of
     permissions for the key.
     """
-    
+
     __tablename__ = "api_keys"
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     # hashed key
     hashed_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -30,5 +36,5 @@ class APIKey(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     scopes: Mapped[list] = mapped_column(JSONB, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    
-    user: Mapped["User"] = relationship(back_populates="api_keys") # type: ignore
+
+    user: Mapped["User"] = relationship(back_populates="api_keys")

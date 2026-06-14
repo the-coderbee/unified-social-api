@@ -1,13 +1,13 @@
 """
 Database queries and operations for social account management.
 
-Contains async repository functions for creating, fetching, 
+Contains async repository functions for creating, fetching,
 and updating social account records in the database.
 """
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,13 +26,13 @@ async def link_social_account(
     username: Optional[str] = None,
     global_name: Optional[str] = None,
     avatar_url: Optional[str] = None,
-    profile_metadata: Optional[dict] = None
+    profile_metadata: Optional[dict] = None,
 ) -> SocialAccount:
     """
     Link the provided social account.
-    
+
     Creates a new social account record in the system.
-    
+
     Args:
         db: The current active database session.
         user_id: The ID of the user making the request.
@@ -45,23 +45,23 @@ async def link_social_account(
         global_name: The user's display name on the social platform.
         avatar_url: The user's profile picture url on the social platform.
         profile_metadata: Other optional metadata about the user profile.
-    
+
     Returns:
         A SocialAccount object.
     """
-    
+
     expires_at = None
     if expires_in:
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
     query = select(SocialAccount).where(
         SocialAccount.platform == platform_name,
-        SocialAccount.provider_account_id == provider_account_id
+        SocialAccount.provider_account_id == provider_account_id,
     )
-    
+
     result = await db.execute(query)
     account = result.scalar_one_or_none()
-    
+
     safe_metadata = profile_metadata if profile_metadata is not None else {}
 
     if account:
@@ -83,85 +83,91 @@ async def link_social_account(
             username=username,
             global_name=global_name,
             avatar_url=avatar_url,
-            profile_metadata=safe_metadata
+            profile_metadata=safe_metadata,
         )
         db.add(account)
-    
+
     await db.flush()
-    
+
     return account
+
 
 async def update_social_account_tokens(
     db: AsyncSession,
     account_id: uuid.UUID,
     new_access_token: str,
     new_refresh_token: Optional[str],
-    expires_in: int
+    expires_in: int,
 ) -> SocialAccount:
     """
     Update tokens for a social account.
-    
+
     Args:
         db: The current active database session.
         account_id: The account ID for which the tokens are to be updated.
         new_access_token: The newly obtained access token.
         new_refresh_token: The newly obtained refresh token.
         expires_in: The expiration time of the access token in seconds.
-    
+
     Returns:
         The updated SocialAccount object.
     """
-    
+
     query = select(SocialAccount).where(SocialAccount.id == account_id)
     result = await db.execute(query)
     account = result.scalar_one_or_none()
-    
+
     if not account:
         raise ValueError("Social account not found")
-    
+
     expires_at = None
-    
+
     if expires_in:
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-    
+
     account.expires_at = expires_at
-    
+
     account.access_token = new_access_token
-    
+
     if new_refresh_token:
         account.refresh_token = new_refresh_token
-    
+
     await db.flush()
     await db.refresh(account)
-    
+
     return account
 
-async def get_social_accounts(db: AsyncSession, user_id: uuid.UUID) -> List[SocialAccount]:
+
+async def get_social_accounts(
+    db: AsyncSession, user_id: uuid.UUID
+) -> Sequence[SocialAccount]:
     """Fetch all the social accounts of the user."""
     query = select(SocialAccount).where(SocialAccount.user_id == user_id)
     result = await db.execute(query)
     return result.scalars().all()
 
-async def unlink_social_account(db: AsyncSession, platform_name: str, user_id: uuid.UUID) -> bool:
+
+async def unlink_social_account(
+    db: AsyncSession, platform_name: str, user_id: uuid.UUID
+) -> bool:
     """
     Unlink a linked social account from the system.
-    
+
     Args:
         db: The current active database session.
         platform_name: The name of the platform to unlink.
         user_id: The ID of the user requesting to unlink.
-    
+
     Returns:
         A boolean value representing the success or failure of the delete operation.
     """
-    
+
     query = select(SocialAccount).where(
-        SocialAccount.platform == platform_name,
-        SocialAccount.user_id == user_id
+        SocialAccount.platform == platform_name, SocialAccount.user_id == user_id
     )
     result = await db.execute(query)
     account = result.scalar_one_or_none()
-    
+
     if account:
         await db.delete(account)
         await db.flush()
