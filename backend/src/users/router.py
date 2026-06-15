@@ -13,7 +13,7 @@ from src.users.schemas import UserResponse
 
 router = APIRouter(
     tags=["Users"],
-    dependencies=[Depends(RateLimiter(max_requests=60, window_seconds=60))],
+    dependencies=[Depends(RateLimiter(max_requests=120, window_seconds=60))],
 )
 
 

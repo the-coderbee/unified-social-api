@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     X_CLIENT_SECRET: str
     X_REDIRECT_URI: str
 
+    # linkedin
+    LINKEDIN_CLIENT_ID: str
+    LINKEDIN_CLIENT_SECRET: str
+    LINKEDIN_REDIRECT_URI: str
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )

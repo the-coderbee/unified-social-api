@@ -11,10 +11,7 @@ import uuid
 from typing import List, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import APIKeyCookie
-from httpx._transports.default import A
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.applications import AppType
 
 from src.api.dependencies import RateLimiter, get_current_user
 from src.api_keys.models import APIKey
@@ -32,7 +29,7 @@ from src.users.models import User
 
 router = APIRouter(
     tags=["API"],
-    dependencies=[Depends(RateLimiter(max_requests=20, window_seconds=60))],
+    dependencies=[Depends(RateLimiter(max_requests=40, window_seconds=60))],
 )
 
 

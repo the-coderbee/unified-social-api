@@ -30,7 +30,7 @@ from src.users.models import User
 
 router = APIRouter(
     tags=["Social Accounts"],
-    dependencies=[Depends(RateLimiter(max_requests=30, window_seconds=60))],
+    dependencies=[Depends(RateLimiter(max_requests=60, window_seconds=60))],
 )
 
 

@@ -43,7 +43,7 @@ from src.users.schemas import UserResponse
 
 router = APIRouter(
     tags=["Authentication"],
-    dependencies=[Depends(RateLimiter(max_requests=5, window_seconds=60))],
+    dependencies=[Depends(RateLimiter(max_requests=20, window_seconds=60))],
 )
 
 
@@ -256,7 +256,9 @@ async def google_oauth_callback(
         )
     try:
         if not user:
-            user_in = GoogleUserCreate(email=email, auth_provider=AuthValues.GOOGLE)
+            user_in = GoogleUserCreate(
+                email=email, password=None, auth_provider=AuthValues.GOOGLE
+            )
             user = await create_user(db, user_in)
             await db.commit()
 
@@ -356,7 +358,9 @@ async def github_oauth_callback(
 
     try:
         if not user:
-            user_in = GithubUserCreate(email=email, auth_provider=AuthValues.GITHUB)
+            user_in = GithubUserCreate(
+                email=email, password=None, auth_provider=AuthValues.GITHUB
+            )
             user = await create_user(db, user_in)
             await db.commit()
 

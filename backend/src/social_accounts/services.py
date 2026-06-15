@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.social_accounts.models import SocialAccount
 from src.social_accounts.platforms.base import SocialPlatform
 from src.social_accounts.platforms.discord import DiscordPlatform
+from src.social_accounts.platforms.linkedin import LinkedInPlatform
 from src.social_accounts.platforms.x import XPlatform
 from src.social_accounts.repository import update_social_account_tokens
 
@@ -21,6 +22,7 @@ from src.social_accounts.repository import update_social_account_tokens
 PLATFORMS: Dict[str, SocialPlatform] = {
     "discord": DiscordPlatform(),
     "x": XPlatform(),
+    "linkedin": LinkedInPlatform(),
 }
 
 
