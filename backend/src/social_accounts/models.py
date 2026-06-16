@@ -32,7 +32,7 @@ class SocialAccount(Base, TimestampMixin):
         UUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     platform: Mapped[str] = mapped_column(String(50), nullable=False)
-
+    platform_instance: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     provider_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
 
     username: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -51,6 +51,9 @@ class SocialAccount(Base, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "platform", "provider_account_id", name="uix_platform_account"
+            "platform",
+            "platform_instance",
+            "provider_account_id",
+            name="uix_platform_instance_account",
         ),
     )

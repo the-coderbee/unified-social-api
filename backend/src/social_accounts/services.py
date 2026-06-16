@@ -6,15 +6,17 @@ for obtaining valid access token from the desired platforms.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.social_accounts.models import SocialAccount
 from src.social_accounts.platforms.base import SocialPlatform
 from src.social_accounts.platforms.discord import DiscordPlatform
 from src.social_accounts.platforms.linkedin import LinkedInPlatform
+from src.social_accounts.platforms.mastodon import MastodonPlatform
 from src.social_accounts.platforms.x import XPlatform
 from src.social_accounts.repository import update_social_account_tokens
 
@@ -25,8 +27,23 @@ PLATFORMS: Dict[str, SocialPlatform] = {
     "linkedin": LinkedInPlatform(),
 }
 
+MASTODON_INSTANCES = {
+    "mastodon.social": {
+        "client_id": settings.MASTODON_CLIENT_ID,
+        "client_secret": settings.MASTODON_CLIENT_SECRET,
+        "redirect_uri": settings.MASTODON_REDIRECT_URI,
+    },
+    # "fosstodon.org": {
+    #     "client_id": settings.FOSSTODON_CLIENT_ID,
+    #     "client_secret": settings.FOSSTODON_CLIENT_SECRET,
+    #     "redirect_uri": settings.FOSSTODON_REDIRECT_URI,
+    # },
+}
 
-def get_platform_instance(platform_name: str) -> SocialPlatform:
+
+def get_platform_instance(
+    platform_name: str, platform_instance: Optional[str] = None
+) -> SocialPlatform:
     """
     Fetch a platform instance using a platform name.
 
@@ -39,6 +56,20 @@ def get_platform_instance(platform_name: str) -> SocialPlatform:
     Raises:
         HTTPException 404: If the requested platform is unsupported.
     """
+
+    if platform_name == "mastodon":
+        if not platform_instance:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mastodon platform requires a platform_instance.",
+            )
+        creds = MASTODON_INSTANCES.get(platform_instance)
+        if not creds:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Unsupported Mastodon instance: {platform_instance}",
+            )
+        return MastodonPlatform(instance_domain=platform_instance, **creds)
 
     platform = PLATFORMS.get(platform_name)
     if not platform:
@@ -72,7 +103,7 @@ async def get_valid_access_token(db: AsyncSession, account: SocialAccount) -> st
             f"Token for {account.platform} is expired and no refresh token available"
         )
 
-    platform = get_platform_instance(account.platform)
+    platform = get_platform_instance(account.platform, account.platform_instance)
     token_data = await platform.refresh_access_token(account.refresh_token)
 
     updated_account = await update_social_account_tokens(

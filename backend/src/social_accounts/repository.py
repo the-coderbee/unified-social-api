@@ -21,6 +21,7 @@ async def link_social_account(
     platform_name: str,
     provider_account_id: str,
     access_token: str,
+    platform_instance: Optional[str] = None,
     refresh_token: Optional[str] = None,
     expires_in: int = 0,
     username: Optional[str] = None,
@@ -39,6 +40,7 @@ async def link_social_account(
         platform_name: The name of the social platform.
         provider_account_id: The account ID of user obtained from the social platform.
         access_token: The Bearer token obtained from the social platform through code exchange.
+        platform_instance: The instance of the social platform (e.g., "facebook", "twitter").
         refresh_token: The refresh token obtained from the social platform through code exchange.
         expires_in: The expiration time of the access token in seconds.
         username: The user's username on the social platform.
@@ -56,6 +58,7 @@ async def link_social_account(
 
     query = select(SocialAccount).where(
         SocialAccount.platform == platform_name,
+        SocialAccount.platform_instance == platform_instance,
         SocialAccount.provider_account_id == provider_account_id,
     )
 
@@ -76,6 +79,7 @@ async def link_social_account(
         account = SocialAccount(
             user_id=user_id,
             platform=platform_name,
+            platform_instance=platform_instance,
             provider_account_id=provider_account_id,
             access_token=access_token,
             refresh_token=refresh_token,

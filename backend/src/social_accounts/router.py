@@ -10,7 +10,7 @@ Endpoints:
 """
 
 import secrets
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,12 +30,14 @@ from src.users.models import User
 
 router = APIRouter(
     tags=["Social Accounts"],
-    dependencies=[Depends(RateLimiter(max_requests=60, window_seconds=60))],
+    dependencies=[Depends(RateLimiter(max_requests=300, window_seconds=60))],
 )
 
 
 @router.get("/login/{platform_name}")
-async def get_login_url(platform_name: str) -> Dict[str, str]:
+async def get_login_url(
+    platform_name: str, platform_instance: Optional[str] = None
+) -> Dict[str, str]:
     """
     Get the login url for the social account with a secure state.
 
@@ -52,7 +54,7 @@ async def get_login_url(platform_name: str) -> Dict[str, str]:
         HTTPException 500: If there is an internal server error.
     """
     try:
-        platform = get_platform_instance(platform_name)
+        platform = get_platform_instance(platform_name, platform_instance)
         state = secrets.token_urlsafe(16)
 
         await redis_client.setex(f"social:oauth:state:{state}", 300, "valid")
@@ -72,6 +74,7 @@ async def get_login_url(platform_name: str) -> Dict[str, str]:
 async def link_account(
     platform_name: str,
     payload: SocialLinkRequest,
+    platform_instance: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> SocialAccount:
@@ -93,10 +96,10 @@ async def link_account(
         HTTPException 500: If there is an internal server error.
     """
     try:
-        platform = get_platform_instance(platform_name)
+        platform = get_platform_instance(platform_name, platform_instance)
         stored_state = await redis_client.get(f"social:oauth:state:{payload.state}")
         if not stored_state:
-            raise HTTPException(status_code=400, detail="Invalid or expired state")
+            raise HTTPException(status_code=400, detail="Invalid or expired state:")
 
         await redis_client.delete(f"social:oauth:state:{payload.state}")
         token_response = await platform.exchange_code_for_token(
@@ -124,14 +127,15 @@ async def link_account(
             db=db,
             user_id=current_user.id,
             platform_name=platform_name,
+            platform_instance=platform_instance,
             provider_account_id=provider_account_id,
             access_token=access_token,
             refresh_token=refresh_token,
-            expires_in=int(token_response["expires_in"]),
-            username=user_profile_response["username"],
-            global_name=user_profile_response["global_name"],
-            avatar_url=user_profile_response["avatar_url"],
-            profile_metadata=user_profile_response["metadata"],
+            expires_in=token_response.get("expires_in", 0),
+            username=user_profile_response.get("username"),
+            global_name=user_profile_response.get("global_name"),
+            avatar_url=user_profile_response.get("avatar_url"),
+            profile_metadata=user_profile_response.get("metadata"),
         )
 
         await db.commit()

@@ -6,6 +6,7 @@ platform API responses.
 """
 
 from datetime import datetime
+from sys import platform
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -16,6 +17,7 @@ class SocialLinkRequest(BaseModel):
 
     code: str
     state: str
+    platform_instance: Optional[str] = None
 
 
 class SocialAccountResponse(BaseModel):
