@@ -10,7 +10,7 @@ from src.core.config import settings
 
 engine = create_async_engine(
     str(settings.DATABASE_URL),
-    echo=True,
+    echo=False,
     future=True,
     pool_pre_ping=True,
     pool_recycle=300,

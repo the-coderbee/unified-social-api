@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     LINKEDIN_CLIENT_SECRET: str
     LINKEDIN_REDIRECT_URI: str
 
+    # mastodon
+    MASTODON_CLIENT_ID: str
+    MASTODON_CLIENT_SECRET: str
+    MASTODON_REDIRECT_URI: str
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )

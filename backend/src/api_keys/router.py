@@ -29,7 +29,7 @@ from src.users.models import User
 
 router = APIRouter(
     tags=["API"],
-    dependencies=[Depends(RateLimiter(max_requests=40, window_seconds=60))],
+    dependencies=[Depends(RateLimiter(max_requests=300, window_seconds=60))],
 )
 
 

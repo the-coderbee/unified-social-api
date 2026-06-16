@@ -34,7 +34,7 @@ from src.users.models import User
 
 router = APIRouter(
     tags=["Posts"],
-    dependencies=[Depends(RateLimiter(max_requests=60, window_seconds=60))],
+    dependencies=[Depends(RateLimiter(max_requests=300, window_seconds=60))],
 )
 
 
@@ -69,7 +69,9 @@ async def _process_post(
                 tasks.append(
                     (
                         platform,
-                        get_platform_instance(platform).publish_post(
+                        get_platform_instance(
+                            platform, account.platform_instance
+                        ).publish_post(
                             token, account.provider_account_id, post.content
                         ),
                     )
