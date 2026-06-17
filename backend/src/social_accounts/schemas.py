@@ -6,7 +6,6 @@ platform API responses.
 """
 
 from datetime import datetime
-from sys import platform
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -25,6 +24,8 @@ class SocialAccountResponse(BaseModel):
 
     platform: str
     provider_account_id: str
+    platform_instance: Optional[str] = None
+    is_active: bool = True
     username: Optional[str]
     global_name: Optional[str]
     avatar_url: Optional[str]

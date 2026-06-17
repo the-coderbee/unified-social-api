@@ -24,6 +24,7 @@ from src.posts.repository import create_post_platform_result, get_post_by_id
 from src.posts.repository import get_posts as get_posts_db
 from src.posts.schemas import (
     PostCreate,
+    PostDetailResponse,
     PostPlatformResultCreate,
     PostPlatformResultResponse,
     PostResponse,
@@ -231,7 +232,7 @@ async def retry_post(
     return post_response
 
 
-@router.get("/", response_model=list[PostResponse])
+@router.get("/", response_model=list[PostDetailResponse])
 async def get_posts(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -260,7 +261,7 @@ async def get_posts(
     )
 
 
-@router.get("/{post_id}", response_model=PostResponse)
+@router.get("/{post_id}", response_model=PostDetailResponse)
 async def get_post(
     post_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),

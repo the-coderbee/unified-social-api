@@ -192,4 +192,10 @@ async def list_linked_accounts(
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> Sequence[SocialAccount]:
     """Fetches all linked accounts for the user."""
-    return await get_social_accounts(db, current_user.id)
+    try:
+        return await get_social_accounts(db, current_user.id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch accounts: {str(e)}",
+        )

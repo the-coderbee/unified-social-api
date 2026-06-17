@@ -75,6 +75,7 @@ async def link_social_account(
         account.global_name = global_name
         account.avatar_url = avatar_url
         account.profile_metadata = safe_metadata
+        account.is_active = True
     else:
         account = SocialAccount(
             user_id=user_id,
@@ -146,7 +147,9 @@ async def get_social_accounts(
     db: AsyncSession, user_id: uuid.UUID
 ) -> Sequence[SocialAccount]:
     """Fetch all the social accounts of the user."""
-    query = select(SocialAccount).where(SocialAccount.user_id == user_id)
+    query = select(SocialAccount).where(
+        SocialAccount.user_id == user_id, SocialAccount.is_active
+    )
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -173,7 +176,7 @@ async def unlink_social_account(
     account = result.scalar_one_or_none()
 
     if account:
-        await db.delete(account)
+        account.is_active = False
         await db.flush()
         return True
     return False

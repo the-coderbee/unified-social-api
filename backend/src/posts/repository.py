@@ -94,7 +94,11 @@ async def get_posts(
         List of Post objects.
     """
 
-    query = select(Post).where(Post.user_id == user_id)
+    query = (
+        select(Post)
+        .where(Post.user_id == user_id)
+        .options(selectinload(Post.platform_results))
+    )
     if status:
         query = query.where(Post.status == status)
 

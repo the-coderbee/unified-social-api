@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.posts.models import PostResultStatus, PostStatus
 
@@ -63,3 +63,16 @@ class PostResponse(PostBase):
     not_connected_platforms: List[str]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PostDetailResponse(BaseModel):
+    """Response schema for listing/retrieving historical posts."""
+
+    id: uuid.UUID
+    content: str
+    status: PostStatus
+    created_at: datetime
+    results: List[PostPlatformResultResponse] = Field(
+        validation_alias="platform_results"
+    )
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
