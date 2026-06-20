@@ -7,7 +7,7 @@ and  API responses related to post management.
 
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -30,7 +30,7 @@ class PostCreate(PostBase):
     """
 
     platforms: List[str]
-    options: Optional[dict] = None
+    options: Optional[Dict[str, Dict[str, str]]] = None
 
 
 class PostPlatformResultCreate(BaseModel):

@@ -155,28 +155,47 @@ async def get_social_accounts(
 
 
 async def unlink_social_account(
-    db: AsyncSession, platform_name: str, user_id: uuid.UUID
-) -> bool:
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    platform_name: str,
+    platform_instance: Optional[str] = None,
+) -> str:
     """
     Unlink a linked social account from the system.
 
     Args:
         db: The current active database session.
-        platform_name: The name of the platform to unlink.
         user_id: The ID of the user requesting to unlink.
+        platform_name: The name of the platform to unlink.
+        platform_instance: The specific instance of the platform to unlink.
 
     Returns:
-        A boolean value representing the success or failure of the delete operation.
+        One of "unlinked", "not_found", "ambiguous"
     """
 
     query = select(SocialAccount).where(
-        SocialAccount.platform == platform_name, SocialAccount.user_id == user_id
+        SocialAccount.user_id == user_id,
+        SocialAccount.platform == platform_name,
+        SocialAccount.is_active,
     )
     result = await db.execute(query)
-    account = result.scalar_one_or_none()
+    accounts = result.scalars().all()
 
-    if account:
-        account.is_active = False
+    if not accounts:
+        return "not_found"
+
+    if len(accounts) == 1:
+        accounts[0].is_active = False
         await db.flush()
-        return True
-    return False
+        return "unlinked"
+
+    if not platform_instance:
+        return "ambiguous"
+
+    matching = [a for a in accounts if a.platform_instance == platform_instance]
+    if not matching:
+        return "not_found"
+
+    matching[0].is_active = False
+    await db.flush()
+    return "unlinked"

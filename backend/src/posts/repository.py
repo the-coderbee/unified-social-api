@@ -15,6 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from src.posts.models import Post, PostPlatformResult, PostStatus
 from src.posts.schemas import PostCreate, PostPlatformResultCreate
+from src.social_accounts.models import SocialAccount
 
 
 async def create_post(
@@ -77,6 +78,7 @@ async def get_posts(
     user_id: uuid.UUID,
     status: Optional[PostStatus] = None,
     platform: Optional[str] = None,
+    platform_instance: Optional[str] = None,
     created_before: Optional[datetime] = None,
     created_after: Optional[datetime] = None,
 ) -> Sequence[Post]:
@@ -89,6 +91,10 @@ async def get_posts(
         db: Active database session.
         user_id: The user requesting the posts.
         status: Optional status parameter for filtering posts.
+        platform: The name of the platform to fetch posts for.
+        platform_instance: The name of the instance for the specified platform.
+        created_before: The timestamp value before which the posts are to be queried.
+        created_after: The timestamp value after which the posts are to be queried.
 
     Returns:
         List of Post objects.
@@ -103,11 +109,16 @@ async def get_posts(
         query = query.where(Post.status == status)
 
     if platform:
-        query = (
-            query.join(PostPlatformResult)
-            .where(PostPlatformResult.platform_name == platform)
-            .distinct()
+        query = query.join(PostPlatformResult).where(
+            PostPlatformResult.platform_name == platform
         )
+
+        if platform_instance:
+            query = query.join(
+                SocialAccount, PostPlatformResult.social_account_id == SocialAccount.id
+            ).where(SocialAccount.platform_instance == platform_instance)
+
+        query = query.distinct()
 
     if created_before:
         query = query.where(Post.created_at <= created_before)

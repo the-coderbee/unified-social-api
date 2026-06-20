@@ -33,11 +33,11 @@ MASTODON_INSTANCES = {
         "client_secret": settings.MASTODON_CLIENT_SECRET,
         "redirect_uri": settings.MASTODON_REDIRECT_URI,
     },
-    # "fosstodon.org": {
-    #     "client_id": settings.FOSSTODON_CLIENT_ID,
-    #     "client_secret": settings.FOSSTODON_CLIENT_SECRET,
-    #     "redirect_uri": settings.FOSSTODON_REDIRECT_URI,
-    # },
+    "defcon.social": {
+        "client_id": settings.DEFCON_CLIENT_ID,
+        "client_secret": settings.DEFCON_CLIENT_SECRET,
+        "redirect_uri": settings.DEFCON_REDIRECT_URI,
+    },
 }
 
 

@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     MASTODON_CLIENT_SECRET: str
     MASTODON_REDIRECT_URI: str
 
+    # defcon
+    DEFCON_CLIENT_ID: str
+    DEFCON_CLIENT_SECRET: str
+    DEFCON_REDIRECT_URI: str
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )

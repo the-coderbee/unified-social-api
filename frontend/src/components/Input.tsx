@@ -5,11 +5,10 @@ import { cn } from '@/lib/utils'
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
-  hint?: string
 }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, className, id, ...props }, ref) => {
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ label, error, className, id, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
 
     return (
@@ -26,39 +25,27 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'h-9 w-full rounded-lg border px-3 text-sm bg-surface-1 text-text-primary',
+            'w-full rounded-lg border bg-surface-2 px-3.5 py-2.5 text-sm text-text-primary',
             'placeholder:text-text-tertiary',
-            'transition-colors duration-150',
-            error
-              ? 'border-error focus:border-error focus:ring-1 focus:ring-error/30'
-              : 'border-surface-3 focus:border-accent focus:ring-1 focus:ring-accent/30',
-            'outline-none',
+            'outline-none transition-all duration-150',
+            'border-border focus:border-accent focus:ring-2 focus:ring-accent/20',
+            error && 'border-error focus:border-error focus:ring-error/20',
             className
           )}
           {...props}
         />
-        <AnimatePresence mode="wait">
-          {error ? (
+        <AnimatePresence>
+          {error && (
             <motion.p
-              key="error"
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
+              transition={{ duration: 0.15 }}
               className="text-xs text-error"
             >
               {error}
             </motion.p>
-          ) : hint ? (
-            <motion.p
-              key="hint"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-xs text-text-tertiary"
-            >
-              {hint}
-            </motion.p>
-          ) : null}
+          )}
         </AnimatePresence>
       </div>
     )
@@ -66,3 +53,5 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 )
 
 Input.displayName = 'Input'
+
+export default Input

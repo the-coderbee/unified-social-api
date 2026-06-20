@@ -1,39 +1,35 @@
 import { cn } from '@/lib/utils'
-import type { PlatformName } from '@/lib/constants'
+
+type BadgeVariant = 'available' | 'coming_soon' | 'success' | 'failed' | 'pending' | 'partial'
 
 interface BadgeProps {
-  variant?: 'default' | 'success' | 'error' | 'warning' | 'outline'
-  platform?: PlatformName
+  variant: BadgeVariant
   children: React.ReactNode
   className?: string
 }
 
-const variantMap = {
-  default: 'bg-surface-2 text-text-secondary',
-  success: 'bg-success/15 text-success',
-  error: 'bg-error/15 text-error',
-  warning: 'bg-warning/15 text-warning',
-  outline: 'border border-surface-3 text-text-secondary',
+const variantClasses: Record<BadgeVariant, string> = {
+  available:    'bg-green-500/10 text-green-400 border border-green-500/20',
+  coming_soon:  'bg-surface-2 text-text-tertiary border border-border',
+  success:      'bg-green-500/10 text-green-400',
+  failed:       'bg-red-500/10 text-red-400',
+  pending:      'bg-amber-500/10 text-amber-400',
+  partial:      'bg-blue-500/10 text-blue-400',
 }
 
-const platformColorMap: Record<PlatformName, string> = {
-  discord: 'bg-discord/15 text-discord',
-  x: 'bg-x/10 text-x',
-  reddit: 'bg-reddit/15 text-reddit',
-  linkedin: 'bg-linkedin/15 text-linkedin',
-}
-
-export function Badge({ variant = 'default', platform, children, className }: BadgeProps) {
-  const colorClass = platform ? platformColorMap[platform] : variantMap[variant]
-
+export default function Badge({ variant, children, className }: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full',
-        colorClass,
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5',
+        'text-xs font-medium uppercase tracking-wider',
+        variantClasses[variant],
         className
       )}
     >
+      {(variant === 'available') && (
+        <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+      )}
       {children}
     </span>
   )

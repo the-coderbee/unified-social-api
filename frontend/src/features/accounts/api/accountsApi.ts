@@ -1,38 +1,41 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
-import { useToastStore } from '@/store/toastStore'
-import type { AuthUrlResponse, LinkAccountPayload, LinkAccountResponse } from '../types/accounts.types'
+import { API_ROUTES } from '@/lib/constants'
+import type { SocialAccountResponse } from '@/types/api'
 
-export const getAuthUrl = async (platform: string): Promise<AuthUrlResponse> => {
-  const res = await api.get<AuthUrlResponse>(`/social/login/${platform}`)
-  return res.data
+interface SocialLoginUrlResponse {
+  auth_url: string
+  state: string
 }
 
-export const linkAccountFetcher = async (
+export async function listAccounts(): Promise<SocialAccountResponse[]> {
+  const { data } = await api.get<SocialAccountResponse[]>(API_ROUTES.SOCIAL.ACCOUNTS)
+  return data
+}
+
+export async function getSocialLoginUrl(
   platform: string,
-  payload: LinkAccountPayload
-): Promise<LinkAccountResponse> => {
-  const res = await api.post<LinkAccountResponse>(`/social/${platform}/link`, payload)
-  return res.data
+  platformInstance?: string
+): Promise<SocialLoginUrlResponse> {
+  const { data } = await api.get<SocialLoginUrlResponse>(API_ROUTES.SOCIAL.LOGIN(platform), {
+    params: platformInstance ? { platform_instance: platformInstance } : undefined,
+  })
+  return data
 }
 
-export function useLinkAccount(platform: string) {
-  const queryClient = useQueryClient()
-  const { addToast } = useToastStore()
-  const navigate = useNavigate()
+export async function linkAccount(
+  platform: string,
+  code: string,
+  state: string,
+  platformInstance?: string
+): Promise<SocialAccountResponse> {
+  const { data } = await api.post<SocialAccountResponse>(
+    API_ROUTES.SOCIAL.LINK(platform),
+    { code, state, ...(platformInstance && { platform_instance: platformInstance }) },
+    { params: platformInstance ? { platform_instance: platformInstance } : undefined }
+  )
+  return data
+}
 
-  return useMutation({
-    mutationFn: (payload: LinkAccountPayload) => linkAccountFetcher(platform, payload),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['me'] })
-      addToast(data.message || `${platform} connected successfully`, 'success')
-      navigate('/dashboard/accounts')
-    },
-    onError: (error: { response?: { data?: { detail?: string } } }) => {
-      const msg = error.response?.data?.detail ?? 'Failed to connect account'
-      addToast(msg, 'error')
-      navigate('/dashboard/accounts')
-    },
-  })
+export async function unlinkAccount(platform: string): Promise<void> {
+  await api.delete(API_ROUTES.SOCIAL.UNLINK(platform))
 }

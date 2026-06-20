@@ -10,8 +10,9 @@ Endpoints:
 
 import asyncio
 import uuid
+from collections import defaultdict
 from datetime import datetime
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +30,7 @@ from src.posts.schemas import (
     PostPlatformResultResponse,
     PostResponse,
 )
+from src.social_accounts.models import SocialAccount
 from src.social_accounts.repository import get_social_accounts
 from src.social_accounts.services import get_platform_instance, get_valid_access_token
 from src.users.models import User
@@ -39,8 +41,53 @@ router = APIRouter(
 )
 
 
+def _resolve_account(
+    platform: str, accounts: Sequence[SocialAccount], options: Dict[str, Dict[str, str]]
+) -> Optional[SocialAccount]:
+    """
+    Resolve which connected SocialAccount to use for a given platform.
+
+    Args:
+        platform: The platform for which accounts are to be resolved.
+        accounts: List of social accounts connected.
+        options: Additional data for resolving account.
+
+    Returns:
+        None if the platform has no connected accounts at all (caller should treat this as "not connected").
+
+    Raises:
+        HTTPException 400: If the platform is connected but ambiguously and the request does not disambiguate,
+        or specifies an instance that isn't actually connected.
+    """
+
+    if not accounts:
+        return None
+
+    if len(accounts) == 1:
+        return accounts[0]
+
+    requested_instance = options.get(platform, {}).get("platform_instance")
+    if not requested_instance:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Multiple {platform} accounts connected. Specify options.{platform}.platform_instance",
+        )
+
+    for account in accounts:
+        if account.platform_instance == requested_instance:
+            return account
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"No connected {platform} account found for instance '{requested_instance}'.",
+    )
+
+
 async def _process_post(
-    post: Post, platforms: List[str], accounts_map: dict, db: AsyncSession
+    post: Post,
+    platforms: List[str],
+    accounts_map: Dict[str, List[SocialAccount]],
+    db: AsyncSession,
 ) -> Tuple[Post, List[PostPlatformResult]]:
     """
     Private function for processing and publishing posts.
@@ -64,16 +111,18 @@ async def _process_post(
     try:
         tasks = []
         for platform in platforms:
-            account = accounts_map.get(platform)
-            if account:
-                token = await get_valid_access_token(db, account)
+            resolved_account = _resolve_account(
+                platform, accounts_map.get(platform, []), post.options or {}
+            )
+            if resolved_account:
+                token = await get_valid_access_token(db, resolved_account)
                 tasks.append(
                     (
                         platform,
                         get_platform_instance(
-                            platform, account.platform_instance
+                            platform, resolved_account.platform_instance
                         ).publish_post(
-                            token, account.provider_account_id, post.content
+                            token, resolved_account.provider_account_id, post.content
                         ),
                     )
                 )
@@ -99,8 +148,15 @@ async def _process_post(
                 if not partial_success:
                     partial_success = True
 
+            resolved_account = _resolve_account(
+                platform, accounts_map.get(platform, []), post.options or {}
+            )
+            if resolved_account is None:
+                raise RuntimeError(
+                    f"Account for platform '{platform}' unexpectedly unresolved"
+                )
             post_platform_result = await create_post_platform_result(
-                db, post.id, accounts_map[platform].id, post_platform_result_data
+                db, post.id, resolved_account.id, post_platform_result_data
             )
             post_platform_results.append(post_platform_result)
 
@@ -148,14 +204,23 @@ async def create_post(
     """
 
     social_accounts = await get_social_accounts(db, current_user.id)
-    accounts_map = {account.platform: account for account in social_accounts}
-    not_connected_platforms = [
-        platform for platform in post_data.platforms if platform not in accounts_map
-    ]
+
+    accounts_by_platform: Dict[str, List[SocialAccount]] = defaultdict(list)
+    for account in social_accounts:
+        accounts_by_platform[account.platform].append(account)
+
+    not_connected_platforms = []
+    for platform in post_data.platforms:
+        resolved_account = _resolve_account(
+            platform, accounts_by_platform.get(platform, []), post_data.options or {}
+        )
+        if resolved_account is None:
+            not_connected_platforms.append(platform)
+
     post = await create_post_db(db, current_user.id, post_data)
 
     post, post_platform_results = await _process_post(
-        post, post_data.platforms, accounts_map, db
+        post, post_data.platforms, accounts_by_platform, db
     )
 
     post_response = PostResponse(
@@ -210,14 +275,18 @@ async def retry_post(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Post already successful"
         )
     social_accounts = await get_social_accounts(db, current_user.id)
-    accounts_map = {account.platform: account for account in social_accounts}
+
+    accounts_by_platform: Dict[str, List[SocialAccount]] = defaultdict(list)
+    for account in social_accounts:
+        accounts_by_platform[account.platform].append(account)
+
     platforms_to_retry = [
         result.platform_name
         for result in post.platform_results
         if result.status == PostResultStatus.FAILED
     ]
     post, post_platform_results = await _process_post(
-        post, platforms_to_retry, accounts_map, db
+        post, platforms_to_retry, accounts_by_platform, db
     )
     post_response = PostResponse(
         id=post.id,
@@ -238,6 +307,7 @@ async def get_posts(
     current_user: User = Depends(get_current_user),
     status: Optional[PostStatus] = None,
     platform: Optional[str] = None,
+    platform_instance: Optional[str] = None,
     created_after: Optional[datetime] = None,
     created_before: Optional[datetime] = None,
 ) -> Sequence[Post]:
@@ -248,7 +318,8 @@ async def get_posts(
         db: The active db session for fetching the posts.
         current_user: The dependency function to get the current user before handling the request.
         status: The PostStatus value to use for filtering the posts query.
-        platform: The platform to query the posts for.
+        platform: The name of the platform to query the posts for.
+        platform_instance: The instance of the platform specified. Applicable to mastodon only.
         created_before: The starting timestamp to use for querying posts.
         created_after: The end timestamp to use for querying posts.
 
@@ -257,7 +328,13 @@ async def get_posts(
     """
 
     return await get_posts_db(
-        db, current_user.id, status, platform, created_before, created_after
+        db=db,
+        user_id=current_user.id,
+        status=status,
+        platform=platform,
+        platform_instance=platform_instance,
+        created_before=created_before,
+        created_after=created_after,
     )
 
 

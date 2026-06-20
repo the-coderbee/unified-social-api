@@ -1,90 +1,55 @@
-import { forwardRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { Spinner } from './Spinner'
+import type { ComponentPropsWithoutRef } from 'react'
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
-  size?: 'sm' | 'md' | 'lg'
-  loading?: boolean
+type ButtonVariant = 'primary' | 'ghost' | 'outline'
+type ButtonSize = 'sm' | 'md' | 'lg'
+
+interface ButtonProps extends ComponentPropsWithoutRef<'button'> {
+  variant?: ButtonVariant
+  size?: ButtonSize
 }
 
-const variantMap = {
+const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-accent text-white hover:bg-accent-hover font-medium shadow-sm shadow-black/20',
-  secondary:
-    'bg-surface-2 text-text-primary hover:bg-surface-3 border border-surface-3',
+    'bg-gradient-to-r from-accent-from via-accent-mid to-accent-to text-white font-semibold shadow-glow-accent hover:opacity-90 active:opacity-80',
   ghost:
-    'text-text-secondary hover:text-text-primary hover:bg-surface-1',
-  danger:
-    'bg-error/10 text-error hover:bg-error/20 border border-error/30',
+    'bg-transparent text-text-secondary hover:text-text-primary hover:bg-surface-2',
+  outline:
+    'bg-transparent border border-border text-text-primary hover:border-border-active hover:bg-surface-1',
 }
 
-const sizeMap = {
-  sm: 'h-8 px-3 text-sm rounded-lg gap-1.5',
-  md: 'h-9 px-4 text-sm rounded-lg gap-2',
-  lg: 'h-10 px-5 text-base rounded-xl gap-2',
+const sizeClasses: Record<ButtonSize, string> = {
+  sm: 'px-3.5 py-1.5 text-sm rounded-lg',
+  md: 'px-4 py-2 text-sm rounded-lg',
+  lg: 'px-6 py-3 text-base rounded-xl',
 }
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      variant = 'primary',
-      size = 'md',
-      loading = false,
-      disabled,
-      children,
-      className,
-      ...props
-    },
-    ref
-  ) => {
-    const isDisabled = disabled || loading
-
-    return (
-      <motion.button
-        ref={ref}
-        whileTap={isDisabled ? {} : { scale: 0.97 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-        disabled={isDisabled}
-        className={cn(
-          'inline-flex items-center justify-center cursor-pointer select-none transition-colors',
-          'disabled:opacity-50 disabled:pointer-events-none',
-          variantMap[variant],
-          sizeMap[size],
-          className
-        )}
-        {...(props as object)}
-      >
-        <AnimatePresence mode="wait" initial={false}>
-          {loading ? (
-            <motion.span
-              key="spinner"
-              initial={{ opacity: 0, filter: 'blur(4px)' }}
-              animate={{ opacity: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, filter: 'blur(4px)' }}
-              transition={{ duration: 0.12 }}
-              className="flex items-center gap-2"
-            >
-              <Spinner size="sm" />
-              <span>{children}</span>
-            </motion.span>
-          ) : (
-            <motion.span
-              key="content"
-              initial={{ opacity: 0, filter: 'blur(4px)' }}
-              animate={{ opacity: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, filter: 'blur(4px)' }}
-              transition={{ duration: 0.12 }}
-              className="flex items-center gap-2"
-            >
-              {children}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </motion.button>
-    )
-  }
-)
-
-Button.displayName = 'Button'
+export default function Button({
+  variant = 'primary',
+  size = 'md',
+  className,
+  children,
+  disabled,
+  ...props
+}: ButtonProps) {
+  return (
+    <motion.button
+      whileTap={{ scale: disabled ? 1 : 0.97 }}
+      whileHover={{ scale: disabled ? 1 : 1.02 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+      className={cn(
+        'inline-flex items-center justify-center gap-2 cursor-pointer select-none',
+        'transition-colors duration-150 font-medium',
+        'disabled:opacity-50 disabled:cursor-not-allowed',
+        variantClasses[variant],
+        sizeClasses[size],
+        className
+      )}
+      disabled={disabled}
+      {...(props as object)}
+    >
+      {children}
+    </motion.button>
+  )
+}

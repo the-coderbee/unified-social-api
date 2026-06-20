@@ -26,3 +26,4 @@ test-results/
 .coverage
 *.pyc
 .pytest_cache/
+CLAUDE.md

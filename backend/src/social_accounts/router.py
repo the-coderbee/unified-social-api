@@ -154,6 +154,7 @@ async def link_account(
 @router.delete("/{platform_name}/unlink", status_code=status.HTTP_204_NO_CONTENT)
 async def unlink_account(
     platform_name: str,
+    platform_instance: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -162,19 +163,29 @@ async def unlink_account(
 
     Args:
         platform_name: The platform to unlink.
+        platform_instance: The instance of the social platform(required for mastodon).
         current_user: The dependency function used for getting the current user before handling the request.
         db: The active database session for persisting account unlinking.
 
     Raises:
         HTTPException 404: If the account is not found.
-        HTTPException 400: If unlinking the account fails.
+        HTTPException 400: If platform instance is not provided.
+        HTTPException 500: If an internal server error occured.
     """
 
-    result = await unlink_social_account(db, platform_name, current_user.id)
-    if not result:
+    result = await unlink_social_account(
+        db, current_user.id, platform_name, platform_instance
+    )
+    if result == "not_found":
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Account not found: {platform_name}",
+        )
+
+    if result == "ambiguous":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Multiple instances found for this platform. Please provide the instance detail.",
         )
 
     try:
@@ -182,8 +193,8 @@ async def unlink_account(
     except Exception as e:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to unlink account: {str(e)}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occured.",
         )
 
 
