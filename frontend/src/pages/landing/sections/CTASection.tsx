@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { ArrowRight, BookOpen } from 'lucide-react'
 import Button from '@/components/Button'
 
@@ -38,13 +39,17 @@ export default function CTASection() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
-            <Button variant="primary" size="lg" className="gap-2">
-              Get your API key <ArrowRight className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="lg" className="gap-2">
-              <BookOpen className="w-4 h-4" />
-              Read the docs
-            </Button>
+            <Link to="/register">
+              <Button variant="primary" size="lg" className="gap-2">
+                Get your API key <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+            <Link to="/docs">
+              <Button variant="ghost" size="lg" className="gap-2">
+                <BookOpen className="w-4 h-4" />
+                Read the docs
+              </Button>
+            </Link>
           </div>
 
           {/* Stats */}

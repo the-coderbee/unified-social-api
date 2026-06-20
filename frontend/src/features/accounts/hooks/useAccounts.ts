@@ -48,10 +48,18 @@ export function useLinkAccount(options?: {
 export function useUnlinkAccount() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (platform: string) => unlinkAccount(platform),
-    onSuccess: (_, platform) => {
+    mutationFn: ({ platform, platformInstance }: { platform: string; platformInstance?: string }) =>
+      unlinkAccount(platform, platformInstance),
+    // Filter by instance when present so disconnecting one Mastodon instance
+    // leaves the other connected; non-Mastodon callers pass no instance.
+    onSuccess: (_, { platform, platformInstance }) => {
       queryClient.setQueryData<SocialAccountResponse[]>(ACCOUNTS_QUERY_KEY, (old) =>
-        old ? old.filter((a) => a.platform !== platform) : []
+        old
+          ? old.filter(
+              (a) =>
+                !(a.platform === platform && (!platformInstance || a.platform_instance === platformInstance))
+            )
+          : []
       )
     },
   })

@@ -1,13 +1,10 @@
 export type AuthProvider = 'google' | 'github' | 'local'
 
-export type PostStatus = 'PENDING' | 'SUCCESS' | 'PARTIAL_SUCCESS' | 'FAILED'
-
-export type PostResultStatus = 'SUCCESS' | 'FAILED'
-
 export type PlatformName = 'mastodon' | 'linkedin' | 'discord' | 'x'
 
 export interface SocialAccountResponse {
   platform: string
+  platform_instance: string | null
   provider_account_id: string
   username: string | null
   global_name: string | null
@@ -33,23 +30,6 @@ export interface TokenResponse {
 
 export interface RefreshTokenRequest {
   refresh_token: string
-}
-
-export interface PostPlatformResult {
-  platform_name: string
-  status: PostResultStatus
-  post_url: string | null
-  error_message: string | null
-  created_at: string
-}
-
-export interface PostResponse {
-  id: string
-  content: string
-  status: PostStatus
-  created_at: string
-  results: PostPlatformResult[]
-  not_connected_platforms: string[]
 }
 
 export interface APIKeyResponse {

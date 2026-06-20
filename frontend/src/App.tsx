@@ -3,7 +3,6 @@ import LandingPage from './pages/landing/LandingPage'
 import AuthPage from './pages/auth/AuthPage'
 import DashboardLayout from './pages/dashboard/DashboardLayout'
 import OverviewPage from './pages/dashboard/OverviewPage'
-import PostsPage from './pages/dashboard/PostsPage'
 import PlatformsPage from './pages/dashboard/PlatformsPage'
 import ApiKeysPage from './pages/dashboard/ApiKeysPage'
 import OAuthCallbackHandler from './features/auth/components/OAuthCallbackHandler'
@@ -39,7 +38,6 @@ export default function App() {
         >
           <Route index element={<Navigate to="/dashboard/overview" replace />} />
           <Route path="overview" element={<OverviewPage />} />
-          <Route path="posts" element={<PostsPage />} />
           <Route path="platforms" element={<PlatformsPage />} />
           <Route path="api-keys" element={<ApiKeysPage />} />
           <Route path="accounts/callback/:platform" element={<SocialCallbackHandler />} />

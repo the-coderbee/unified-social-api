@@ -5,7 +5,7 @@ import { AlertCircle, X, CheckCircle, Clock } from 'lucide-react'
 import { useAccounts, useUnlinkAccount } from '@/features/accounts/hooks/useAccounts'
 import { getSocialLoginUrl } from '@/features/accounts/api/accountsApi'
 import Button from '@/components/Button'
-import { DASHBOARD_PLATFORMS } from '@/lib/constants'
+import { DASHBOARD_PLATFORMS, MASTODON_INSTANCES } from '@/lib/constants'
 import type { SocialAccountResponse } from '@/types/api'
 import { formatDate } from '@/lib/utils'
 
@@ -36,23 +36,25 @@ const PLATFORM_ICONS: Record<string, React.ReactNode> = {
 
 interface PlatformCardProps {
   platform: (typeof DASHBOARD_PLATFORMS)[number]
+  // Set for Mastodon cards — each federated instance renders as its own card.
+  instance?: string
   account?: SocialAccountResponse
 }
 
-function PlatformCard({ platform, account }: PlatformCardProps) {
+function PlatformCard({ platform, instance, account }: PlatformCardProps) {
   const [confirmUnlink, setConfirmUnlink] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const { mutate: unlink, isPending: unlinking } = useUnlinkAccount()
   const isConnected = Boolean(account)
+  const isMastodon = Boolean(instance)
 
   async function handleConnect() {
     setConnecting(true)
     try {
-      const platformInstance = platform.id === 'mastodon' ? 'mastodon.social' : undefined
-      if (platformInstance) {
-        sessionStorage.setItem(`social_platform_instance_${platform.id}`, platformInstance)
+      if (instance) {
+        sessionStorage.setItem(`social_platform_instance_${platform.id}`, instance)
       }
-      const { auth_url, state } = await getSocialLoginUrl(platform.id, platformInstance)
+      const { auth_url, state } = await getSocialLoginUrl(platform.id, instance)
       sessionStorage.setItem(`social_state_${platform.id}`, state)
       window.location.href = auth_url
     } catch {
@@ -61,9 +63,10 @@ function PlatformCard({ platform, account }: PlatformCardProps) {
   }
 
   function handleUnlink() {
-    unlink(platform.id, {
-      onSuccess: () => setConfirmUnlink(false),
-    })
+    unlink(
+      { platform: platform.id, platformInstance: instance },
+      { onSuccess: () => setConfirmUnlink(false) }
+    )
   }
 
   return (
@@ -84,6 +87,9 @@ function PlatformCard({ platform, account }: PlatformCardProps) {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-text-primary">{platform.name}</h3>
+            {isMastodon && (
+              <p className="text-xs text-text-tertiary mt-0.5 font-mono">{instance}</p>
+            )}
             {isConnected && account && (
               <p className="text-xs text-text-tertiary mt-0.5">
                 @{account.username ?? account.global_name ?? account.provider_account_id}
@@ -154,25 +160,27 @@ function PlatformCard({ platform, account }: PlatformCardProps) {
           )}
         </AnimatePresence>
       ) : platform.available ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full justify-center gap-2"
-          onClick={handleConnect}
-          disabled={connecting}
-        >
-          {connecting ? (
-            <>
-              <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-              Connecting…
-            </>
-          ) : (
-            `Connect ${platform.name.split(' ')[0]}`
-          )}
-        </Button>
+        <div className="flex flex-col gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-center gap-2"
+            onClick={handleConnect}
+            disabled={connecting}
+          >
+            {connecting ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                Connecting…
+              </>
+            ) : (
+              `Connect ${platform.name.split(' ')[0]}`
+            )}
+          </Button>
+        </div>
       ) : (
         <p className="text-xs text-text-tertiary text-center py-1">
           Available in a future release
@@ -233,7 +241,7 @@ export default function PlatformsPage() {
         className="grid grid-cols-1 sm:grid-cols-2 gap-4"
       >
         {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
+          Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="rounded-xl border border-border bg-surface-1 p-5 animate-pulse h-36" />
           ))
         ) : isError ? (
@@ -248,9 +256,23 @@ export default function PlatformsPage() {
             </Button>
           </div>
         ) : (
-          DASHBOARD_PLATFORMS.map((platform) => {
-            const account = accounts?.find((a) => a.platform === platform.id)
-            return <PlatformCard key={platform.id} platform={platform} account={account} />
+          DASHBOARD_PLATFORMS.flatMap((platform) => {
+            // Mastodon is federated — render one card per supported instance.
+            const instances: (string | undefined)[] =
+              platform.id === 'mastodon' ? MASTODON_INSTANCES.map((i) => i.domain) : [undefined]
+            return instances.map((instance) => {
+              const account = accounts?.find(
+                (a) => a.platform === platform.id && (!instance || a.platform_instance === instance)
+              )
+              return (
+                <PlatformCard
+                  key={`${platform.id}:${instance ?? ''}`}
+                  platform={platform}
+                  instance={instance}
+                  account={account}
+                />
+              )
+            })
           })
         )}
       </motion.div>

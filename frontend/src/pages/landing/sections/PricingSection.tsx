@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import { PRICING_TIERS } from '@/lib/constants'
 import Button from '@/components/Button'
@@ -72,13 +73,15 @@ export default function PricingSection() {
               </div>
 
               {/* CTA */}
-              <Button
-                variant={tier.recommended ? 'primary' : 'outline'}
-                size="md"
-                className="w-full justify-center"
-              >
-                {tier.cta}
-              </Button>
+              <Link to={tier.ctaHref} className="block">
+                <Button
+                  variant={tier.recommended ? 'primary' : 'outline'}
+                  size="md"
+                  className="w-full justify-center"
+                >
+                  {tier.cta}
+                </Button>
+              </Link>
 
               {/* Features */}
               <ul className="space-y-3">

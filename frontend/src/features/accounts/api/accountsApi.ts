@@ -36,6 +36,8 @@ export async function linkAccount(
   return data
 }
 
-export async function unlinkAccount(platform: string): Promise<void> {
-  await api.delete(API_ROUTES.SOCIAL.UNLINK(platform))
+export async function unlinkAccount(platform: string, platformInstance?: string): Promise<void> {
+  await api.delete(API_ROUTES.SOCIAL.UNLINK(platform), {
+    params: platformInstance ? { platform_instance: platformInstance } : undefined,
+  })
 }

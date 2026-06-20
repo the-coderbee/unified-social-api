@@ -10,12 +10,6 @@ export const API_ROUTES = {
   USERS: {
     ME: '/api/v1/users/me',
   },
-  POSTS: {
-    LIST: '/api/v1/posts/',
-    CREATE: '/api/v1/posts/',
-    GET: (id: string) => `/api/v1/posts/${id}`,
-    RETRY: (id: string) => `/api/v1/posts/${id}/retry`,
-  },
   SOCIAL: {
     ACCOUNTS: '/api/v1/social/accounts',
     LOGIN: (platform: string) => `/api/v1/social/login/${platform}`,
@@ -34,6 +28,13 @@ export const DASHBOARD_PLATFORMS = [
   { id: 'discord', name: 'Discord', color: '#5865f2', available: true },
   { id: 'mastodon', name: 'Mastodon', color: '#6364ff', available: true },
   { id: 'linkedin', name: 'LinkedIn', color: '#0a66c2', available: true },
+] as const
+
+// Mastodon is federated — each instance is a separate OAuth app on the backend.
+// Each supported instance renders as its own Platforms-page card.
+export const MASTODON_INSTANCES = [
+  { domain: 'mastodon.social', label: 'mastodon.social' },
+  { domain: 'defcon.social', label: 'defcon.social' },
 ] as const
 
 export const API_KEY_SCOPES = [
@@ -69,7 +70,7 @@ export const PLATFORMS = [
   {
     id: 'mastodon',
     name: 'Mastodon',
-    description: 'Publish posts to the open, federated social web via mastodon.social.',
+    description: 'Publish to the open, federated social web across multiple Mastodon instances.',
     status: 'available' as const,
     color: '#6364ff',
   },
@@ -159,6 +160,7 @@ export const PRICING_TIERS = [
       'Community support',
     ],
     cta: 'Start for free',
+    ctaHref: '/register',
     recommended: false,
   },
   {
@@ -177,6 +179,7 @@ export const PRICING_TIERS = [
       'Priority support',
     ],
     cta: 'Start with Pro',
+    ctaHref: '/register',
     recommended: true,
   },
   {
@@ -194,6 +197,7 @@ export const PRICING_TIERS = [
       'On-premise option',
     ],
     cta: 'Contact us',
+    ctaHref: '/register',
     recommended: false,
   },
 ] as const

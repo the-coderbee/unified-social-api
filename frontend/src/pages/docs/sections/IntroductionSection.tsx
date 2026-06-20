@@ -47,8 +47,8 @@ export default function IntroductionSection() {
         </h1>
         <p className="text-lg text-text-secondary leading-relaxed mb-6">
           Unified Social API lets you publish content to multiple social platforms with a single HTTP
-          request. Connect your accounts once, then post to Discord, X (Twitter), and more — all
-          concurrently, with built-in retry logic for partial failures.
+          request. Connect your accounts once, then post to X (Twitter), Discord, Mastodon, and
+          LinkedIn — all concurrently, with built-in retry logic for partial failures.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
