@@ -136,6 +136,7 @@ async def link_account(
             global_name=user_profile_response.get("global_name"),
             avatar_url=user_profile_response.get("avatar_url"),
             profile_metadata=user_profile_response.get("metadata"),
+            webhook_url=token_response.get("webhook_url"),
         )
 
         await db.commit()
@@ -208,5 +209,5 @@ async def list_linked_accounts(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch accounts: {str(e)}",
+            detail="An internal server error occured.",
         )

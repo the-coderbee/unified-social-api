@@ -122,7 +122,10 @@ async def _process_post(
                         get_platform_instance(
                             platform, resolved_account.platform_instance
                         ).publish_post(
-                            token, resolved_account.provider_account_id, post.content
+                            token,
+                            resolved_account.provider_account_id,
+                            post.content,
+                            resolved_account.webhook_url,
                         ),
                     )
                 )

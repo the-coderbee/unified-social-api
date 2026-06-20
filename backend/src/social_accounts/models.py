@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Optional
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql.expression import null
 
 from src.common.models import Base, TimestampMixin
 
@@ -39,6 +40,7 @@ class SocialAccount(Base, TimestampMixin):
     global_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
+    webhook_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     profile_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
 
     access_token: Mapped[str] = mapped_column(String(500), nullable=False)

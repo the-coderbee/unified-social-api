@@ -27,6 +27,7 @@ async def link_social_account(
     username: Optional[str] = None,
     global_name: Optional[str] = None,
     avatar_url: Optional[str] = None,
+    webhook_url: Optional[str] = None,
     profile_metadata: Optional[dict] = None,
 ) -> SocialAccount:
     """
@@ -46,6 +47,7 @@ async def link_social_account(
         username: The user's username on the social platform.
         global_name: The user's display name on the social platform.
         avatar_url: The user's profile picture url on the social platform.
+        webhook_url: Webhook url for posting to discord. Applicable only for discord platform.
         profile_metadata: Other optional metadata about the user profile.
 
     Returns:
@@ -74,6 +76,7 @@ async def link_social_account(
         account.username = username
         account.global_name = global_name
         account.avatar_url = avatar_url
+        account.webhook_url = webhook_url
         account.profile_metadata = safe_metadata
         account.is_active = True
     else:
@@ -88,6 +91,7 @@ async def link_social_account(
             username=username,
             global_name=global_name,
             avatar_url=avatar_url,
+            webhook_url=webhook_url,
             profile_metadata=safe_metadata,
         )
         db.add(account)

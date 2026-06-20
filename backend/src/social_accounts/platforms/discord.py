@@ -1,8 +1,9 @@
 """
 Discord Social Platform class.
 
-Implements the necessary methods from SocialPlatform base class for linking account.
-Publishing requires webhooks (currently unavailable).
+Implements OAuth2 with the webhook.incoming scope, which returns a
+per-channel webhook URL directly in the token exchange response.
+Publishing uses this webhook URL — no bot or bearer token required.
 """
 
 import urllib.parse
@@ -48,7 +49,7 @@ class DiscordPlatform(SocialPlatform):
             "response_type": "code",
             "client_id": self.client_id,
             "redirect_uri": self.redirect_uri,
-            "scope": "identify email",
+            "scope": "identify email webhook.incoming",
             "state": state,
         }
 
@@ -86,10 +87,13 @@ class DiscordPlatform(SocialPlatform):
             token_response.raise_for_status()
             token_data = token_response.json()
 
+            webhook = token_data.get("webhook")
+            webhook_url = webhook.get("url") if webhook else None
             return {
                 "access_token": token_data.get("access_token"),
                 "refresh_token": token_data.get("refresh_token"),
                 "expires_in": token_data.get("expires_in", 604800),
+                "webhook_url": webhook_url,
             }
 
     async def refresh_access_token(self, refresh_token: str) -> dict:
@@ -174,7 +178,11 @@ class DiscordPlatform(SocialPlatform):
             }
 
     async def publish_post(
-        self, access_token: str, provider_account_id: str, content: str
+        self,
+        access_token: str,
+        provider_account_id: str,
+        content: str,
+        webhook_url: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Publish a new post to the platform.
@@ -183,12 +191,21 @@ class DiscordPlatform(SocialPlatform):
             access_token: The bearer token obtained from code exchange.
             provider_account_id: The ID of the provider account to publish from.
             content: The post content to publish to the platform.
+            webhook_url: The webhook url needed for posting.
 
         Returns:
             Dictionary containing:
                 post_url: The url of the post.
 
         Raises:
-            Exception: If publishing the post fails.
+            Exception: If webhook is not configured or publishing the post fails.
         """
-        raise NotImplementedError("Discord publishing requires webhook authorization")
+        if not webhook_url:
+            raise Exception("No Discord webhook configured for this account.")
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(webhook_url, json={"content": content})
+            if response.status_code not in (200, 204):
+                raise Exception(f"Failed to publish Discord message: {response.text}")
+
+            return {"post_url": webhook_url}

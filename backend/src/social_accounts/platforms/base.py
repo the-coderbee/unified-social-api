@@ -70,7 +70,11 @@ class SocialPlatform(ABC):
 
     @abstractmethod
     async def publish_post(
-        self, access_token: str, provider_account_id: str, content: str
+        self,
+        access_token: str,
+        provider_account_id: str,
+        content: str,
+        webhook_url: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Publish a post to the platform using the provided access token.
