@@ -31,11 +31,13 @@ Unified Social API lets you publish your posts in one go. No more integrating mu
 **Auth & Security**
 - PyJWT + PKCE — JWT token generation and OAuth security
 - passlib(Argon2) — password hashing 
-- OAuth2 — social login (Google, GitHub) and platform linking (X, Discord)
+- OAuth2 — social login (Google, GitHub) and platform linking (X, Discord, LinkedIn, Mastodon)
 
 ## Features
 
-- Publish to X and Discord with a single API call (more platforms coming)
+- Publish to X, Discord, LinkedIn, and Mastodon with a single API call
+- Multi-instance platform support (e.g. multiple Mastodon servers) with automatic disambiguation
+- Discord publishing via OAuth2 webhook.incoming scope — no bot setup required
 - OAuth2 social account linking with secure PKCE flow
 - Concurrent platform posting using asyncio
 - Automatic token refresh — never worry about expired credentials
@@ -67,6 +69,8 @@ API credentials for platform integration
 
 - Discord
 - X
+- LinkedIn
+- Mastodon (per instance registration is required)
 
 ## Getting Started
 
@@ -177,6 +181,23 @@ Copy `.env.example` to `.env` and fill in the values.
 | `X_CLIENT_SECRET` | The client secret of your x application | Yes | 
 | `X_REDIRECT_URI` | The redirect uri set in your x application | Yes | 
 
+### Platform (LinkedIn OAuth)
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `LINKEDIN_CLIENT_ID` | The client ID of your LinkedIn application | Yes |
+| `LINKEDIN_CLIENT_SECRET` | The client secret of your LinkedIn application | Yes |
+| `LINKEDIN_REDIRECT_URI` | The redirect uri set in your LinkedIn application | Yes |
+
+### Platform (Mastodon OAuth — per instance)
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `MASTODON_CLIENT_ID` | Client ID for mastodon.social | Yes |
+| `MASTODON_CLIENT_SECRET` | Client secret for mastodon.social | Yes |
+| `MASTODON_REDIRECT_URI` | Redirect URI registered on mastodon.social | Yes |
+| `DEFCON_CLIENT_ID` | Client ID for defcon.social | Optional |
+| `DEFCON_CLIENT_SECRET` | Client secret for defcon.social | Optional |
+| `DEFCON_REDIRECT_URI` | Redirect URI registered on defcon.social | Optional |
+
 ### Frontend
 | Variable | Description | Required |
 |----------|-------------|----------|
@@ -200,9 +221,9 @@ The API Endpoints:
 `[GET] /api/v1/users/me` — Get the currently logged in user. \
 
 ### Social Accounts
-`[GET] /api/v1/social/login/{platform_name}` — Get login url for the specified platform. \
+`[GET] /api/v1/social/login/{platform_name}` — Get login url for the specified platform. Accepts optional `platform_instance` query param for multi-instance platforms (e.g. Mastodon). \
 `[POST] /api/v1/social/{platform_name}/link` — Link the specified social platform. \
-`[DELETE] /api/v1/social/{platform_name}/unlink` — Unlink the specified social platform. \
+`[DELETE] /api/v1/social/{platform_name}/unlink` — Unlink the specified social platform. Accepts optional `platform_instance` query param when multiple instances are connected. \
 `[GET] /api/v1/social/accounts` — Get all linked social accounts. \
 
 ### Posts
@@ -233,6 +254,15 @@ We have Abstract classes for AuthProvider and SocialPlatform. This helps us enfo
 
 ### Redis Usage
 Redis serves three purposes — fast shared state across multiple server instances, automatic TTL-based cleanup for temporary data like PKCE verifiers and refresh tokens, and efficient sorted sets for sliding window rate limiting.
+
+### Multi-Instance Platform Support
+Most platforms have one fixed API endpoint, but federated platforms like Mastodon don't — each server (mastodon.social, defcon.social, etc.) is independently hosted with its own OAuth credentials. Rather than hardcoding a single instance, `SocialAccount` stores a `platform_instance` field alongside `platform`, and platform classes like `MastodonPlatform` take their instance domain as a constructor argument instead of reading it from global settings. This means a user can connect multiple accounts on the same platform (e.g. two different Mastodon servers), and the API resolves which one to use per request — automatically if only one is connected, or explicitly via an `options.platform_instance` field in the request body if there's ambiguity. Adding a new pre-registered instance is a config change, not a code change.
+
+### Soft Delete for Social Accounts
+Unlinking a social account doesn't delete the row — it sets `is_active = false`. This exists because `post_platform_results` holds a foreign key to `social_accounts`, and a hard delete would either violate that constraint (if posts were ever made through the account) or silently destroy post history. Soft delete preserves the full audit trail of what was posted where, even after disconnection, and lets a user reconnect the same account later without losing that history — `link_social_account` reactivates a matching inactive row instead of creating a duplicate.
+
+### Discord Webhook Publishing
+Discord doesn't have a simple "post to my feed" endpoint the way X or Mastodon do — posting requires either a bot installed in the user's server, or a webhook scoped to a single channel. Rather than building bot infrastructure, the API uses Discord's `webhook.incoming` OAuth2 scope: during authorization, the user picks a channel, and the token exchange response includes a ready-to-use webhook URL alongside the usual access/refresh tokens. That URL is stored on `SocialAccount` as a dedicated field (not bundled into generic metadata, since it's a functional credential, not descriptive data) and is what `publish_post` calls directly — no bearer token needed at send time, since the webhook URL itself is the credential.
 
 ## License
 
